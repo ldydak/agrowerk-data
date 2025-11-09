@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Cocur\Slugify\Slugify;
+use Carbon\Carbon;
 
 class ProductsController extends Controller
 {
@@ -13,11 +14,13 @@ class ProductsController extends Controller
     }
 
     public function import(Request $request){
+        
         $request->file('file')->move(public_path('import_temp'),$request->file('file')->getClientOriginalName());
         $uploadedImportFile = public_path('import_temp') . '/' . $request->file('file')->getClientOriginalName();
         try{
             SimpleExcelReader::create($uploadedImportFile)->useDelimiter(';')->getRows()
             ->each(function(array $rowProperties) {
+
                 // szukaj czy numer artykułu z CSV istnieje juz w bazie sklepu
                 // pętla dla kazdego rzędu pliku csv
                 $productsDB = DB::connection('mysql-sklep')->table("products");
@@ -37,7 +40,10 @@ class ProductsController extends Controller
                     $brandID = $this->brand($rowProperties['Brand']);
 
                     // sprawdź kategorię i zwróć jej ID
-                    $categoryID = $this->category($rowProperties['Categories']);
+                    // $categoryID = $this->category($rowProperties['Categories']);
+
+                    // sprawdź wszystkie kategorie i zwróć wszystkie ID
+                    $categoryIDs = $this->category($rowProperties['Categories']);
 
                     $finalPricePLNandProfitNetto = $this->price($rowProperties['oryginal_price']);
 
@@ -49,6 +55,7 @@ class ProductsController extends Controller
                         'brand_id' => $brandID,
                         'tax_class_id' => 1,
                         'slug' =>  $this->makeSlug($rowProperties['Name']),
+                        'sku' => $rowProperties['SKU'],
                         'price' => $this->price($rowProperties['oryginal_price']),
                         'selling_price' => $this->price($rowProperties['oryginal_price']),
                         'oryginal_price' => str_replace(',', '.', $rowProperties['oryginal_price']),
@@ -60,17 +67,24 @@ class ProductsController extends Controller
                         'manual_url' => $rowProperties['manual'],
                         'chemical_info' => $rowProperties['chemical_info'],
                         'oryginal_url' => $rowProperties['oryginal_url'],
-                        'sku' => $rowProperties['SKU'],
                         'manage_stock' => 0,
                         'is_active' => 1,
-                        'updated_at' => now()]
+                        'updated_at' => Carbon::now()]
                     );
 
-                    // przypisz produkt do kategorii
-                    DB::connection('mysql-sklep')->table("product_categories")->insert(
-                        ['category_id' => $categoryID,
-                        'product_id' => $productID]
-                    );
+                    // przypisz produkt do kategorii (jednej, ostatniej)
+                    // DB::connection('mysql-sklep')->table("product_categories")->insert(
+                    //     ['category_id' => $categoryID,
+                    //     'product_id' => $productID]
+                    // );
+
+                    // przypisz produkt do każdej kategorii w hierarchii
+                    foreach ($categoryIDs as $catID) {
+                        DB::connection('mysql-sklep')->table("product_categories")->insert([
+                            'category_id' => $catID,
+                            'product_id' => $productID
+                        ]);
+                    }
 
                     // dodaj opisy do tego produktu w tabeli product_translations 
                     $productTranslationsDB->insert(
@@ -138,18 +152,18 @@ class ProductsController extends Controller
         }
     }
 
-    public function category(string $categoryPath)
+    public function category(string $categoryPath): array
     {
         $categoriesDB = DB::connection('mysql-sklep')->table("categories");
 
         $categoryParts = array_map('trim', explode('>', $categoryPath));
 
         $parentId = null;
-        $lastCategoryId = null;
+        $categoryIds = [];
 
         foreach ($categoryParts as $categoryName) {
 
-            // Sprawdzamy czy kategoria o tej nazwie i parent_id już istnieje
+            // Sprawdź czy istnieje kategoria o tej nazwie i rodzicu
             $existingCategory = DB::connection('mysql-sklep')->table('category_translations')
                 ->join('categories', 'category_translations.category_id', '=', 'categories.id')
                 ->where('category_translations.name', $categoryName)
@@ -164,11 +178,12 @@ class ProductsController extends Controller
                 ->first();
 
             if ($existingCategory) {
-                $lastCategoryId = $existingCategory->id;
+                $categoryId = $existingCategory->id;
             } else {
+                // Tworzymy nową kategorię
                 $slug = $this->makeSlug($categoryName);
 
-                // 🔹 Sprawdzamy czy slug już istnieje — jeśli tak, dopisujemy sufiks
+                // Zapobiegamy duplikacji slugów
                 $originalSlug = $slug;
                 $counter = 2;
                 while (
@@ -181,8 +196,8 @@ class ProductsController extends Controller
                     $counter++;
                 }
 
-                // 🔹 Wstawiamy kategorię
-                $insertedCategoryID = $categoriesDB->insertGetId([
+                // Wstawiamy kategorię
+                $categoryId = $categoriesDB->insertGetId([
                     'slug' => $slug,
                     'is_active' => 1,
                     'is_searchable' => 1,
@@ -190,19 +205,23 @@ class ProductsController extends Controller
                 ]);
 
                 DB::connection('mysql-sklep')->table('category_translations')->insert([
-                    'category_id' => $insertedCategoryID,
+                    'category_id' => $categoryId,
                     'locale' => 'pl',
                     'name' => $categoryName,
                 ]);
-
-                $lastCategoryId = $insertedCategoryID;
             }
 
-            $parentId = $lastCategoryId;
+            // Zapamiętujemy ID kategorii
+            $categoryIds[] = $categoryId;
+
+            // Ustawiamy nowego rodzica
+            $parentId = $categoryId;
         }
 
-        return $lastCategoryId;
+        // Zwracamy wszystkie ID kategorii z hierarchii
+        return $categoryIds;
     }
+
 
 
 

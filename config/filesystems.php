@@ -59,7 +59,18 @@ return [
             'throw' => false,
             'report' => false,
         ],
-
+        'media_ftp' => [
+            'driver' => 'ftp',
+            'host' => env('MEDIA_FTP_HOST'),
+            'username' =>  env('MEDIA_FTP_USERNAME'),
+            'password' =>  env('MEDIA_FTP_PASSWORD'),
+            'port'     =>  21,
+            'root'     =>  env('MEDIA_FTP_IMAGES_PATH')
+            // 'root' => '/Example',
+            // 'passive'  => true,
+            // 'ssl'      => true,
+            // 'timeout'  => 30,
+        ],
     ],
 
     /*

@@ -15,9 +15,6 @@
                         <div class="col-12 col-md mb-3">
                             <p class="text-muted">Działanie importera:</p>
                             <ul>
-                                <li>Importer łączy się z bazą sklepu</li>
-                                <li>Importer konwertuje pliki .jpg do .webp i kompresuje do jakosci 90%</li>
-                                <li>Zdjęcia są wgrywane na FTP media.chemianiemcy.pl/produkty/ z nazwą jak nazwa produktu</li>
                             </ul>
                             <label class="form-label" for="file">Wybierz plik .csv</label>
                             <input type="file" id="file" name="file">
