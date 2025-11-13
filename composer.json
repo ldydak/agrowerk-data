@@ -13,6 +13,7 @@
         "laravel/tinker": "^2.10.1",
         "laravel/ui": "^4.6",
         "league/flysystem-ftp": "^3.29",
+        "league/flysystem-sftp-v3": "^3.30",
         "spatie/laravel-image-optimizer": "^1.8",
         "spatie/simple-excel": "^3.8"
     },

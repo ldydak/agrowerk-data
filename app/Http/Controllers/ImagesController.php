@@ -29,36 +29,58 @@ class ImagesController extends Controller
         $this->importType = $request->imagesImportType;
 
         try {
-            SimpleExcelReader::create($uploadedImportFile)->getRows()
-                ->each(function (array $row) {
-                    $sku = $row['SKU'] ?? null;
-                    if (!$sku || !$this->productExist($sku)) {
-                        return; // pomiń, jeśli brak SKU lub produktu
+            // automatyczne wykrywanie separatora
+            $firstLine = fgets(fopen($uploadedImportFile, 'r'));
+            $delimiter = str_contains($firstLine, ';') ? ';' : (str_contains($firstLine, ',') ? ',' : "\t");
+
+            // usuń ewentualny BOM
+            $csvContent = file_get_contents($uploadedImportFile);
+            $csvContent = preg_replace('/^\xEF\xBB\xBF/', '', $csvContent);
+            file_put_contents($uploadedImportFile, $csvContent);
+
+            // Ustal od którego wiersza ma się zaczynać import
+            $startRow = 402; // tutaj zmień numer wiersza startowego
+            $rowIndex = 0;
+
+            $reader = SimpleExcelReader::create($uploadedImportFile)
+                ->useDelimiter($delimiter);
+
+            $reader->getRows()->each(function (array $rowProperties) use (&$rowIndex, $startRow) {
+                $rowIndex++;
+
+                // Pomijaj wiersze przed startem
+                if ($rowIndex < $startRow) {
+                    return;
+                }
+
+                $sku = $rowProperties['SKU'] ?? null;
+                if (!$sku || !$this->productExist($sku)) {
+                    return; // pomiń, jeśli brak SKU lub produktu
+                }
+
+                $product = DB::connection('mysql-sklep')->table('products')->where('sku', $sku)->first();
+                $productID = $product->id;
+                $productSlug = $product->slug;
+
+                $baseImage = $rowProperties['base_image'] ?? null;
+                $additionalImages = $rowProperties['additional_images'] ?? '';
+
+                // Base image
+                if ($baseImage) {
+                    $this->mainImportImageFunction($baseImage, $productID, $sku, $productSlug, 0, 'base_image');
+                }
+
+                // Additional images
+                $i = 0;
+                foreach (explode(',', $additionalImages) as $additionalImage) {
+                    $additionalImage = trim($additionalImage);
+                    if (empty($additionalImage) || $additionalImage === '#') {
+                        continue;
                     }
-
-                    $product = DB::connection('mysql-sklep')->table('products')->where('sku', $sku)->first();
-                    $productID = $product->id;
-                    $productSlug = $product->slug;
-
-                    $baseImage = $row['base_image'] ?? null;
-                    $additionalImages = $row['additional_images'] ?? '';
-
-                    // Base image
-                    if ($baseImage) {
-                        $this->mainImportImageFunction($baseImage, $productID, $sku, $productSlug, 0, 'base_image');
-                    }
-
-                    // Additional images
-                    $i = 0;
-                    foreach (explode(',', $additionalImages) as $additionalImage) {
-                        $additionalImage = trim($additionalImage);
-                        if (empty($additionalImage) || $additionalImage === '#') {
-                            continue;
-                        }
-                        $i++;
-                        $this->mainImportImageFunction($additionalImage, $productID, $sku, $productSlug, $i, 'additional_images');
-                    }
-                });
+                    $i++;
+                    $this->mainImportImageFunction($additionalImage, $productID, $sku, $productSlug, $i, 'additional_images');
+                }
+            });
 
             unlink($uploadedImportFile);
 

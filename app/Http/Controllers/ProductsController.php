@@ -18,8 +18,20 @@ class ProductsController extends Controller
         $request->file('file')->move(public_path('import_temp'),$request->file('file')->getClientOriginalName());
         $uploadedImportFile = public_path('import_temp') . '/' . $request->file('file')->getClientOriginalName();
         try{
-            SimpleExcelReader::create($uploadedImportFile)->useDelimiter(';')->getRows()
-            ->each(function(array $rowProperties) {
+
+            // automatyczne wykrywanie separatora czy , czy ;
+            $firstLine = fgets(fopen($uploadedImportFile, 'r'));
+            $delimiter = str_contains($firstLine, ';') ? ';' : (str_contains($firstLine, ',') ? ',' : "\t");
+
+            // usuń ewentualny BOM
+            $csvContent = file_get_contents($uploadedImportFile);
+            $csvContent = preg_replace('/^\xEF\xBB\xBF/', '', $csvContent);
+            file_put_contents($uploadedImportFile, $csvContent);
+
+            SimpleExcelReader::create($uploadedImportFile)
+            ->useDelimiter($delimiter)
+            ->getRows()
+            ->each(function (array $rowProperties) {
 
                 // szukaj czy numer artykułu z CSV istnieje juz w bazie sklepu
                 // pętla dla kazdego rzędu pliku csv
@@ -239,44 +251,6 @@ class ProductsController extends Controller
         return number_format($finalPrice, 2, '.', '');
     }
 
-    // public function vat(){
-    //     $vatDB = DB::connection('mysql-sklep')->table("ec_taxes");
-    //     // szukamy vatu 23% i bierzemy jego ID
-    //     $vatExistAlready = $vatDB->where('percentage','=','23.000000')->first();
-    //     // jesli nie ma takiego vatu, to go tworzymy i zwracamy ID
-    //     if($vatExistAlready){
-    //         return $vatExistAlready->id;
-    //     }else{
-    //         $insertedVatID = $vatDB->insertGetId(
-    //             ['title' => 'VAT 23%',
-    //             'percentage' => '23.000000',
-    //             'status' => 'published',
-    //             'priority' => '1']
-    //         );
-    //     }
-    //     return $insertedVatID;
-    // }
-
-    // public function addSlug($makeKey, $reference_id, $prefix){
-    //     $slugify = new Slugify(['rulesets' => ['default', 'polish']]);
-    //     // key to slug w bazie danych
-    //     $key = $slugify->slugify($makeKey, '-');
-    //     $slugDB = DB::connection('mysql-sklep')->table("slugs");
-    //     if($prefix == 'produkt'){
-    //         $reference_type = 'Botble\Ecommerce\Models\Product';
-    //     } elseif($prefix == 'kategoria'){
-    //         $reference_type = 'Botble\Ecommerce\Models\ProductCategory';
-    //     } elseif($prefix == 'producent'){
-    //         $reference_type = 'Botble\Ecommerce\Models\Brand';
-    //     }
-    //     $insertedSlugID = $slugDB->insertGetId(
-    //         ['key' => $key,
-    //         'reference_id' => $reference_id,
-    //         'reference_type' => $reference_type,
-    //         'prefix' => $prefix]
-    //     );
-    //     return $insertedSlugID;
-    // }
 
     public function makeSlug($string){
         $slugify = new Slugify(['rulesets' => ['default', 'polish']]);
@@ -284,13 +258,5 @@ class ProductsController extends Controller
         return $createdSlug;
     }
 
-    // public function deleteAllImportedRecords(){
-    //     DB::connection('mysql-sklep')->table("brands")->truncate();
-    //     DB::connection('mysql-sklep')->table("products")->truncate();
-    //     DB::connection('mysql-sklep')->table("ec_product_categories")->truncate();
-    //     DB::connection('mysql-sklep')->table("ec_product_category_product")->truncate();
-    //     DB::connection('mysql-sklep')->table("slugs")->truncate();
 
-    //     return redirect()->back()->with('success', 'Wyczyszczono bazę: producenci, produkty, kategorie, połączenie produktu z kategoriami, slugi.');
-    // }
 }
