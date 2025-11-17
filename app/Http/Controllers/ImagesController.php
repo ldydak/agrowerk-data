@@ -165,24 +165,8 @@ class ImagesController extends Controller
 
     public function checkFileExistOnSupplierPage($imageUrl)
     {
-        // STARA WERSJA
-        // $headers = @get_headers($imageUrl);
-        // if (!$headers) return false;
-        // return str_contains($headers[0], '200');
-
-        // NOWA
-        $ch = curl_init($imageUrl);
-        curl_setopt($ch, CURLOPT_NOBODY, true);  // <<< NIE pobiera treści
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-
-        curl_exec($ch);
-
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        return ($httpCode >= 200 && $httpCode < 300);
+        $headers = @get_headers($imageUrl);
+        if (!$headers) return false;
+        return str_contains($headers[0], '200');
     }
 }

@@ -61,11 +61,11 @@ return [
         ],
         'media_ftp' => [
             'driver' => 'sftp', // media.schomann jest na SSL (https) a więc korzystam z SFTP
-            'host' => env('MEDIA_FTP_HOST'),
-            'username' =>  env('MEDIA_FTP_USERNAME'),
-            'password' =>  env('MEDIA_FTP_PASSWORD'),
+            'host' => env('MEDIA_SFTP_HOST'),
+            'username' =>  env('MEDIA_SFTP_USERNAME'),
+            'password' =>  env('MEDIA_SFTP_PASSWORD'),
             'port'     =>  22, // media.schomann jest na SSL (https) a więc korzystam z SFTP cyzli port 22 a nie standard 21 dla ftp
-            'root'     =>  env('MEDIA_FTP_IMAGES_PATH')
+            'root'     =>  env('MEDIA_SFTP_IMAGES_PATH')
             // 'root' => '/Example',
             // 'passive'  => true,
             // 'ssl'      => true,
