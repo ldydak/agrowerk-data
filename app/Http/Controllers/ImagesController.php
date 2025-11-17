@@ -101,7 +101,7 @@ class ImagesController extends Controller
         $imageName = sprintf('%s_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
 
         // Pomijanie / aktualizacja
-        if ($this->importType === 'skipExisted' && Storage::disk('media_ftp')->exists($imageName)) {
+        if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists($imageName)) {
             return;
         }
 
@@ -112,7 +112,7 @@ class ImagesController extends Controller
             return;
         }
 
-        $finalUrl = env('MEDIA_FTP_IMAGES_PRE_URL') . $imageName;
+        $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . $imageName;
 
         $fileID = $filesDB->insertGetId([
             'user_id'   => 1,
@@ -146,7 +146,7 @@ class ImagesController extends Controller
         // Kompresja i konwersja do webp
         $image = Image::make($downloadedImage)->encode('webp', 85);
 
-        Storage::disk('media_ftp')->put($imageName, $image, 'r+');
+        Storage::disk('media_sftp')->put($imageName, $image, 'r+');
 
         // MIME i size po uploadzie
         $mime = 'image/webp';

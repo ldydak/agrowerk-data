@@ -59,7 +59,7 @@ return [
             'throw' => false,
             'report' => false,
         ],
-        'media_ftp' => [
+        'media_sftp' => [
             'driver' => 'sftp', // media.schomann jest na SSL (https) a więc korzystam z SFTP
             'host' => env('MEDIA_SFTP_HOST'),
             'username' =>  env('MEDIA_SFTP_USERNAME'),
