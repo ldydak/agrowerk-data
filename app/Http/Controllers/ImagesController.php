@@ -146,7 +146,7 @@ class ImagesController extends Controller
         // Kompresja i konwersja do webp
         $image = Image::make($downloadedImage)->encode('webp', 85);
 
-        Storage::disk('media_ftp')->put($imageName, $image->stream());
+        Storage::disk('media_ftp')->put($imageName, $image, 'r+');
 
         // MIME i size po uploadzie
         $mime = 'image/webp';
