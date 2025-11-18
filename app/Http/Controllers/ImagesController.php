@@ -134,29 +134,68 @@ class ImagesController extends Controller
 
     public function downloadAndUploadToFTP($imageUrl, $imageName)
     {
+        // 1. Sprawdzenie istnienia pliku po stronie dostawcy
         if (!$this->checkFileExistOnSupplierPage($imageUrl)) {
+            \Log::warning("Importer: dostawca zwrócił brak pliku", ['url' => $imageUrl]);
             return false;
         }
 
-        $downloadedImage = @file_get_contents($imageUrl);
-        if (!$downloadedImage) {
+        // 2. Pobranie obrazu CURL-em
+        $ch = curl_init($imageUrl);
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (ImageImporter)',
+            CURLOPT_TIMEOUT => 25,
+        ]);
+
+        $raw = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$raw) {
+            \Log::error("Importer: nie udało się pobrać obrazu", [
+                'url' => $imageUrl,
+                'http' => $httpCode,
+                'bytes' => strlen($raw),
+            ]);
             return false;
         }
 
-        // Kompresja i konwersja do webp
-        $image = Image::make($downloadedImage)->encode('webp', 85);
+        // 3. Walidacja — czy to obraz, a nie HTML
+        if (strlen($raw) < 100 || str_starts_with($raw, '<')) {
+            \Log::error("Importer: dostawca zwrócił nieobrazkowe dane", [
+                'url' => $imageUrl,
+                'sample' => substr($raw, 0, 300),
+            ]);
+            return false;
+        }
 
-        Storage::disk('media_sftp')->put($imageName, $image, 'r+');
+        // 4. Próba utworzenia obiektu obrazu 
+        try {
+            $image = Image::make($raw)->encode('webp', 85);
+        } catch (\Exception $e) {
+            \Log::error("Importer: błąd konwersji do WEBP", [
+                'url' => $imageUrl,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
 
-        // MIME i size po uploadzie
-        $mime = 'image/webp';
-        $size = strlen($image); // w bajtach
+        // 5. Upload na SFTP
+        Storage::disk('media_sftp')->put($imageName, $image);
 
+        // 6. Metadane
         return [
-            'mime' => $mime,
-            'size' => $size,
+            'mime' => 'image/webp',
+            'size' => strlen($image),
         ];
     }
+
 
     public function productExist($sku)
     {
