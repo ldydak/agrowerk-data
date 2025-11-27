@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\DB;
 use Spatie\SimpleExcel\SimpleExcelReader;
 use Cocur\Slugify\Slugify;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
+
 
 class ProductsController extends Controller
 {
@@ -234,9 +236,6 @@ class ProductsController extends Controller
         return $categoryIds;
     }
 
-
-
-
     public function price($priceToConvert)
     {
         // usuń zbędne znaki, przecinki itp.
@@ -258,5 +257,142 @@ class ProductsController extends Controller
         return $createdSlug;
     }
 
+    public function wariantsImport(Request $request) {
+        $request->file('file')->move(public_path('import_temp'),$request->file('file')->getClientOriginalName());
+        $uploadedImportFile = public_path('import_temp') . '/' . $request->file('file')->getClientOriginalName();
+        try {
+
+            // automatyczne wykrywanie separatora czy , czy ;
+            $firstLine = fgets(fopen($uploadedImportFile, 'r'));
+            $delimiter = str_contains($firstLine, ';') ? ';' : (str_contains($firstLine, ',') ? ',' : "\t");
+
+            // usuń ewentualny BOM
+            $csvContent = file_get_contents($uploadedImportFile);
+            $csvContent = preg_replace('/^\xEF\xBB\xBF/', '', $csvContent);
+            file_put_contents($uploadedImportFile, $csvContent);
+
+            // ogólna zmienna trzymająca ID produktu parenta dla wariantu
+            $currentParentProductId = null;
+            $currentVariantPosition = 0;
+
+            SimpleExcelReader::create($uploadedImportFile)
+            ->useDelimiter($delimiter)
+            ->getRows()
+            ->each(function (array $rowProperties) {
+                $productsDB = DB::connection('mysql-sklep')->table("products");
+                $productVariantsDB = DB::connection('mysql-sklep')->table("product_variants");
+                $variationTranslationsDB = DB::connection('mysql-sklep')->table("variation_translations");
+                $productVariationsDB = DB::connection('mysql-sklep')->table("product_variations");
+                $variationValuesDB = DB::connection('mysql-sklep')->table("variation_values");
+                $variationValueTranslationsDB = DB::connection('mysql-sklep')->table("variation_value_translations");
+
+
+                // Sprawdz czy istnieje juz variation translation 'Wariant produktu'
+                $existing = $variationTranslationsDB->where('name', 'Wariant produktu')->first();
+                if ($existing) {
+                    // jeśli istnieje → zwróć ID
+                    $variationTranslationId = $existing->id;
+                } else {
+                    // jeśli nie istnieje → utwórz i zwróć ID
+                    $variationTranslationId = $variationTranslationsDB->insertGetId([
+                        'name'       => 'Wariant produktu',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                $productVariantExistAlready = $productVariantsDB->where('sku','=', $rowProperties['SKU'])->first();
+                if($productVariantExistAlready){
+                // jesli wariant produktu juz istnieje, to nie rób nic
+                } else {
+                // jesli wariant produktu nie istnieje to:
+
+                    // jesli rząd w pliku csv dotyczy produktu glownego (parent - ktory juz jest w bazie)
+                    if ($rowProperties['product_type'] === 'product_has_variants') {
+                            // Ustaw licznik variant position na 0
+                            $currentVariantPosition = 0;
+
+                            // Ustaw "globalne" ID rodzica dla kolejnych wierszy
+                            $currentParentProductId = $productsDB->where('sku','=', $rowProperties['SKU'])->first()->id;
+
+                            // Wyczyść normalny produkt z ceny i innych informacji z bazy (bo one beda w wariancie zapisane)
+                            // TO DO: niedokonczone bo nie wiem czy w rodzicu zostawiac SKU aby na przyszlosc jakos go lokalizowac czy szukac po variantach rodzica, nie wiem.
+                            // ->update([
+                            //     'price'          => null,
+                            //     'original_price' => null,
+                            //     'ean'            => null,
+                            //     'wee'            => null,
+                            //     'weight'         => null,
+                            //     'sku'            => $rowProperties['SKU'], // zostawiamy SKU, jeśli ma zostać
+                            //     'original_url'   => null,
+                            //     'selling_price'  => null,
+                            //     'updated_at'     => now(),
+                            // ]);
+                            
+                    } elseif ($rowProperties['product_type'] === 'is_variant') {
+
+                        $uids = Str::random(12);
+                        // Zwieksz licznik variant position 
+                        $currentVariantPosition++;
+
+                        // stwórz wariant
+                        $productID = $productsDB->insertGetId(
+                            [
+                            'uid' => $this->makeSlug($rowProperties['Name']),
+                            'uids' => $uids,
+                            'product_id' => $currentParentProductId,
+                            'sku' => $rowProperties['SKU'],
+                            'name' => $rowProperties['Name'],
+                            'price' => $this->price($rowProperties['oryginal_price']),
+                            'selling_price' => $this->price($rowProperties['oryginal_price']),
+                            'oryginal_price' => str_replace(',', '.', $rowProperties['oryginal_price']),
+                            'ean' => trim($rowProperties['ean'] ?? '') === '' ? null : $rowProperties['ean'],
+                            'wee' => trim($rowProperties['weee'] ?? '') === '' ? null : $rowProperties['weee'],
+                            'weight' => trim($rowProperties['weight']) === '' ? null : str_replace(',', '.', str_replace(' kg', '', $rowProperties['weight'])),
+                            'oryginal_url' => $rowProperties['oryginal_url'],
+                            'manage_stock' => 0,
+                            'is_active' => 1,
+                            'created_at' => Carbon::now(),
+                            'updated_at' => Carbon::now()
+                            ]
+                        );
+
+                        // Stworz powiazanie product variations i produktu
+                        // product_variations
+                        $productVariationsDB->insert([
+                            'product_id' => $productID,
+                            'variation_id' => $variationTranslationId,
+                        ]);
+
+                        // variation_values
+                        $variationValuesId = $variationValuesDB->insertGetId([
+                            'uid' => $uids,
+                            'variation_id' => $variationTranslationId,
+                            'value' => '',
+                            'position' => $currentVariantPosition,
+                        ]);
+
+                        // variation_value_translations
+                        $variationValueTranslationsDB->insert([
+                            'variation_value_id' => $variationValuesId,
+                            'locale' => 'pl',
+                            'label' => $rowProperties['Name'],
+                        ]);
+
+                    }
+
+                }
+
+            });
+
+            // usun plik tymczasowy z ktorego importuje dane
+            unlink($uploadedImportFile);
+
+            return redirect()->back()->with('success', 'Zaimportowano warianty pomyślnie.');
+        }
+        catch(\Exception $error){
+            return $error->getMessage();
+        }
+    }
 
 }

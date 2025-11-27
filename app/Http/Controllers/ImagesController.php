@@ -208,4 +208,8 @@ class ImagesController extends Controller
         if (!$headers) return false;
         return str_contains($headers[0], '200');
     }
+
+    public function wariantsImageImport(Request $request) {
+
+    }
 }

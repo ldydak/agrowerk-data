@@ -13,14 +13,12 @@
                     @csrf
                     <div class="row">
                         <div class="col-12 col-md mb-3">
-                            <p class="text-muted">Działanie importera:</p>
-                            <ul>
-                            </ul>
                             <label class="form-label" for="file">Wybierz plik .csv</label>
                             <input type="file" id="file" name="file">
                             @error('file')
                                 <div class="alert alert-danger">{{ $message }}</div>
                             @enderror
+                            <p class="text-muted mt-2 mb-0">Przykładowy plik .csv poprawnego importu <a href="/import-examples/import-zdjec-produktow-example.csv">Pobierz</a></p>
                         </div>
                     </div>
                     <div class="row">
