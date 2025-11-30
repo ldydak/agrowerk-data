@@ -16,17 +16,21 @@ class ImagesController extends Controller
     }
 
     private $importType;
+    private $importProductsOrVariants;
 
     public function import(Request $request)
     {
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
-            'imagesImportType' => 'required|in:skipExisted,updateAll'
+            'imagesImportType' => 'required|in:skipExisted,updateAll',
+            'productsOrVariants' => 'required|in:products,variants'
         ]);
+
 
         $request->file('file')->move(public_path('import_temp'), $request->file('file')->getClientOriginalName());
         $uploadedImportFile = public_path('import_temp') . '/' . $request->file('file')->getClientOriginalName();
         $this->importType = $request->imagesImportType;
+        $this->importProductsOrVariants = $request->input('productsOrVariants');
 
         try {
             // automatyczne wykrywanie separatora
@@ -39,7 +43,7 @@ class ImagesController extends Controller
             file_put_contents($uploadedImportFile, $csvContent);
 
             // Ustal od którego wiersza ma się zaczynać import
-            $startRow = 402; // tutaj zmień numer wiersza startowego
+            $startRow = 0; // tutaj zmień numer wiersza startowego
             $rowIndex = 0;
 
             $reader = SimpleExcelReader::create($uploadedImportFile)
@@ -53,21 +57,33 @@ class ImagesController extends Controller
                     return;
                 }
 
+                // Jesli importujesz warianty, pomijaj produkty parenty z pliku importowego
+                if($this->importProductsOrVariants == 'variants' && $rowProperties['product_type'] == 'parent_has_variants'){
+                    return;
+                } 
+
+                // sprawdz czy istniej juz taki produkt, albo wariant
                 $sku = $rowProperties['SKU'] ?? null;
-                if (!$sku || !$this->productExist($sku)) {
+                if (!$sku || !$this->productExist($sku, $this->importProductsOrVariants)) {
                     return; // pomiń, jeśli brak SKU lub produktu
                 }
-
-                $product = DB::connection('mysql-sklep')->table('products')->where('sku', $sku)->first();
+                if($this->importProductsOrVariants == 'products') {
+                    // Produkt
+                    $product = DB::connection('mysql-sklep')->table('products')->where('sku', $sku)->first();
+                    $productSlug = $product->slug;
+                } else {
+                    // Wariant
+                    $product = DB::connection('mysql-sklep')->table('product_variants')->where('sku', $sku)->first();
+                    $productsController = new ProductsController;
+                    $productSlug = $productsController->makeSlug($rowProperties['Name']);
+                }
                 $productID = $product->id;
-                $productSlug = $product->slug;
-
                 $baseImage = $rowProperties['base_image'] ?? null;
                 $additionalImages = $rowProperties['additional_images'] ?? '';
 
                 // Base image
                 if ($baseImage) {
-                    $this->mainImportImageFunction($baseImage, $productID, $sku, $productSlug, 0, 'base_image');
+                    $this->mainImportImageFunction($baseImage, $productID, $sku, $productSlug, 0, 'base_image', $this->importProductsOrVariants);
                 }
 
                 // Additional images
@@ -78,7 +94,7 @@ class ImagesController extends Controller
                         continue;
                     }
                     $i++;
-                    $this->mainImportImageFunction($additionalImage, $productID, $sku, $productSlug, $i, 'additional_images');
+                    $this->mainImportImageFunction($additionalImage, $productID, $sku, $productSlug, $i, 'additional_images', $this->importProductsOrVariants);
                 }
             });
 
@@ -90,19 +106,43 @@ class ImagesController extends Controller
         }
     }
 
-    public function mainImportImageFunction($imageUrl, $productID, $sku, $productSlug, $i, $zoneImageType)
+    public function mainImportImageFunction($imageUrl, $productID, $sku, $productSlug, $i, $zoneImageType, $productsOrVariants)
     {
         $filesDB = DB::connection('mysql-sklep')->table('files');
         $entityFilesDB = DB::connection('mysql-sklep')->table('entity_files');
 
         $imageExtension = strtolower(pathinfo($imageUrl, PATHINFO_EXTENSION));
 
-        // Nazwa finalna
-        $imageName = sprintf('%s_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
 
-        // Pomijanie / aktualizacja
-        if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists($imageName)) {
-            return;
+        // Produkty czy warianty
+        if($productsOrVariants == 'products'){
+            // dodajesz zdjecia produktow
+            // Zmienne
+            $path_folder = 'produkty/';
+            $entity_type = 'Modules\Product\Entities\Product';
+            // Nazwa finalna pliku
+            $imageName = sprintf('%s_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
+
+            $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . $imageName;
+
+             // Pomijanie / aktualizacja
+            if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists($imageName)) {
+                return;
+            }
+        } else {
+            // dodajesz zdjecia wariantow
+            // Zmienne
+            $path_folder = 'produkty/warianty/';
+            $entity_type = 'Modules\Product\Entities\ProductVariant';
+            // Nazwa finalna pliku
+            $imageName = sprintf('%s_wariant_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
+
+            $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . 'warianty/' . $imageName;
+
+            // Pommijanie / aktualizacja
+            if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists('warianty/' . $imageName)) {
+                return;
+            }
         }
 
         // Pobierz i wgraj
@@ -112,13 +152,11 @@ class ImagesController extends Controller
             return;
         }
 
-        $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . $imageName;
-
         $fileID = $filesDB->insertGetId([
             'user_id'   => 1,
             'filename'  => $imageName,
             'disk'      => 'media_schomann',
-            'path'      => 'produkty/' . $imageName,
+            'path'      =>  $path_folder . $imageName,
             'extension' => pathinfo($imageName, PATHINFO_EXTENSION),
             'mime'      => $uploadInfo['mime'] ?? null,
             'size'      => $uploadInfo['size'] ?? null,
@@ -126,7 +164,7 @@ class ImagesController extends Controller
 
         $entityFilesDB->insert([
             'file_id'      => $fileID,
-            'entity_type'  => 'Modules\Product\Entities\Product',
+            'entity_type'  => $entity_type,
             'entity_id'    => $productID,
             'zone'         => $zoneImageType,
         ]);
@@ -187,8 +225,9 @@ class ImagesController extends Controller
         }
 
         // 5. Upload na SFTP
-        Storage::disk('media_sftp')->put($imageName, $image);
-
+        $folder = $this->importProductsOrVariants === 'variants' ? 'warianty/' : '';
+        Storage::disk('media_sftp')->put($folder . $imageName, $image);
+        
         // 6. Metadane
         return [
             'mime' => 'image/webp',
@@ -197,19 +236,22 @@ class ImagesController extends Controller
     }
 
 
-    public function productExist($sku)
+    public function productExist($sku, $productsOrVariants)
     {
-        return DB::connection('mysql-sklep')->table('products')->where('sku', $sku)->exists();
+        if($productsOrVariants == 'products') {
+            // Produkty
+            return DB::connection('mysql-sklep')->table('products')->where('sku', $sku)->exists();
+        } else {
+            // Warianty
+            return DB::connection('mysql-sklep')->table('product_variants')->where('sku', $sku)->exists();
+        }
     }
+    
 
     public function checkFileExistOnSupplierPage($imageUrl)
     {
         $headers = @get_headers($imageUrl);
         if (!$headers) return false;
         return str_contains($headers[0], '200');
-    }
-
-    public function wariantsImageImport(Request $request) {
-
     }
 }
