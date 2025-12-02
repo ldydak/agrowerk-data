@@ -327,6 +327,10 @@ class ProductsController extends Controller
                                 'name'          => $rowProperties['Name']
                             ]);
 
+                            $productsDB->where('id','=', $this->currentParentProductId)->update([
+                                'product_type'          => 'parent_has_variants'
+                            ]);
+
                 
                             // Stworz nowy typ wariantu "Wariant produktu". Niestety w bazie bedzie duzo takich wariantow - nie umiem tego obejsc, patrz powyzej do $existing
                             // variations
