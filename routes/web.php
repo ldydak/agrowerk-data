@@ -25,3 +25,9 @@ Route::group(['prefix' => 'images', 'middleware' => ['auth']], function(){
     Route::post('import',[\App\Http\Controllers\ImagesController::class, 'import'])->name('images.import.import');
     Route::post('wariantsImageImport',[\App\Http\Controllers\ImagesController::class, 'wariantsImageImport'])->name('images.import.wariantsImageImport');
 });
+
+Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function(){
+    Route::get('prices', [\App\Http\Controllers\PricesController::class, 'show'])->name('settings.prices.show');
+    Route::post('prices',[\App\Http\Controllers\PricesController::class, 'update'])->name('settings.prices.update');
+    Route::post('update-prices',[\App\Http\Controllers\PricesController::class, 'countAndUpdatePrices'])->name('settings.prices.countAndUpdatePrices');
+});

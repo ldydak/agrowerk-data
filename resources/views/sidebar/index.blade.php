@@ -15,6 +15,14 @@
                     <span class="align-middle">Import zdjęć</span>
                 </a>
             </li>
+            <li class="sidebar-header">
+                Ustawienia
+            </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="{{route('settings.prices.show')}}">
+                    <span class="align-middle">Ceny i marża</span>
+                </a>
+            </li>
         </ul>
 
     </div>
