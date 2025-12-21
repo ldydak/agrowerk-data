@@ -420,6 +420,70 @@ class ProductsController extends Controller
         }
     }
 
+
+    public function newPricesImport(Request $request) {
+        $request->file('file')->move(public_path('import_temp'),$request->file('file')->getClientOriginalName());
+        $uploadedImportFile = public_path('import_temp') . '/' . $request->file('file')->getClientOriginalName();
+        try {
+
+            // automatyczne wykrywanie separatora czy , czy ;
+            $firstLine = fgets(fopen($uploadedImportFile, 'r'));
+            $delimiter = str_contains($firstLine, ';') ? ';' : (str_contains($firstLine, ',') ? ',' : "\t");
+
+            // usuń ewentualny BOM
+            $csvContent = file_get_contents($uploadedImportFile);
+            $csvContent = preg_replace('/^\xEF\xBB\xBF/', '', $csvContent);
+            file_put_contents($uploadedImportFile, $csvContent);
+
+            SimpleExcelReader::create($uploadedImportFile)
+            ->useDelimiter($delimiter)
+            ->getRows()
+            ->each(function (array $rowProperties) use (&$currentParentProductId) {
+                $productsDB = DB::connection('mysql-sklep')->table("products");
+                $productVariantsDB = DB::connection('mysql-sklep')->table("product_variants");
+
+                $isNoPrice = (mb_strtolower($rowProperties['new_oryginal_price']) === 'brak ceny');
+
+                if ($isNoPrice) {
+                    // 'brak ceny' -> in_stock = 0, ceny nie ruszamy
+                    $productsDB->where('sku', $rowProperties['sku'])->update([
+                        'in_stock' => 0,
+                        'updated_at' => now(), // jeśli tabela ma timestamps
+                    ]);
+
+                    $productVariantsDB->where('sku', $rowProperties['sku'])->update([
+                        'in_stock' => 0,
+                        'updated_at' => now(), // jeśli tabela ma timestamps
+                    ]);
+
+                    return;
+                }
+
+                // cena jest -> ustaw oryginal_price i in_stock=1
+                $productsDB->where('sku', $rowProperties['sku'])->update([
+                    'oryginal_price' => $rowProperties['new_oryginal_price'],
+                    'in_stock' => 1,
+                    'updated_at' => now(),
+                ]);
+
+                $productVariantsDB->where('sku', $rowProperties['sku'])->update([
+                    'oryginal_price' => $rowProperties['new_oryginal_price'],
+                    'in_stock' => 1,
+                    'updated_at' => now(),
+                ]);
+
+            });
+
+            // usun plik tymczasowy z ktorego importuje dane
+            unlink($uploadedImportFile);
+
+            return redirect()->back()->with('success', 'Zaimportowano i zaktualizowano oryginalne ceny.');
+        }
+        catch(\Exception $error){
+            return $error->getMessage();
+        }
+    }
+
     public function shortLowerId($length = 12)
     {
         $alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -430,5 +494,56 @@ class ProductsController extends Controller
         }
 
         return $id;
+    }
+
+    public function generateRelatedProducts(Request $request)
+    {
+
+            DB::connection('mysql-sklep')->table('up_sell_products')->truncate();
+            
+            // Pobieranie wszystkich produktów z ich kategoriami
+            $productsWithCategories = DB::connection('mysql-sklep')->table('product_categories')
+                ->get()
+                ->groupBy('product_id');
+            
+            // Grupowanie produktów według kategorii
+            $productsByCategory = DB::connection('mysql-sklep')->table('product_categories')
+                ->get()
+                ->groupBy('category_id');
+            
+            $upsellData = [];
+            
+            foreach ($productsWithCategories as $productId => $categories) {
+                // Zakładamy, że produkt ma jedną kategorię (bierzemy pierwszą)
+                $categoryId = $categories->first()->category_id;
+                
+                if (isset($productsByCategory[$categoryId])) {
+                    // Pobierz produkty z tej samej kategorii (bez bieżącego)
+                    $relatedProducts = $productsByCategory[$categoryId]
+                        ->where('product_id', '!=', $productId)
+                        ->random(min(10, $productsByCategory[$categoryId]->count() - 1));
+                    
+                    foreach ($relatedProducts as $relatedProduct) {
+                        $upsellData[] = [
+                            'product_id' => $productId,
+                            'up_sell_product_id' => $relatedProduct->product_id,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                    }
+                }
+                
+                // Wstawianie w partiach po 1000 rekordów
+                if (count($upsellData) >= 1000) {
+                    DB::connection('mysql-sklep')->table('up_sell_products')->insert($upsellData);
+                    $upsellData = [];
+                }
+            }
+            
+            // Wstawienie pozostałych rekordów
+            if (!empty($upsellData)) {
+                DB::connection('mysql-sklep')->table('up_sell_products')->insert($upsellData);
+            }
+            return redirect()->back()->with('success', 'Pokrewne produkty zostały wygenerowane.');        
     }
 }

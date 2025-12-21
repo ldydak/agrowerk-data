@@ -18,6 +18,9 @@ Route::group(['prefix' => 'products', 'middleware' => ['auth']], function(){
     Route::get('import', [\App\Http\Controllers\ProductsController::class, 'show'])->name('products.import.show');
     Route::post('import',[\App\Http\Controllers\ProductsController::class, 'import'])->name('products.import.import');
     Route::post('wariantsImport',[\App\Http\Controllers\ProductsController::class, 'wariantsImport'])->name('products.import.wariantsImport');
+    Route::post('newPricesImport',[\App\Http\Controllers\ProductsController::class, 'newPricesImport'])->name('products.import.newPricesImport');
+    Route::post('generateRelatedProducts',[\App\Http\Controllers\ProductsController::class, 'generateRelatedProducts'])->name('products.import.generateRelatedProducts');
+
 });
 
 Route::group(['prefix' => 'images', 'middleware' => ['auth']], function(){

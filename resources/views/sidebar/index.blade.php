@@ -7,12 +7,12 @@
         <ul class="sidebar-nav">
             <li class="sidebar-item">
                 <a class="sidebar-link" href="{{route('products.import.show')}}">
-                    <span class="align-middle">Import produktów</span>
+                    <span class="align-middle">Produkty</span>
                 </a>
             </li>
             <li class="sidebar-item">
                 <a class="sidebar-link" href="{{route('images.import.show')}}">
-                    <span class="align-middle">Import zdjęć</span>
+                    <span class="align-middle">Zdjęcia</span>
                 </a>
             </li>
             <li class="sidebar-header">

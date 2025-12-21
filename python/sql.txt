@@ -1,0 +1,28 @@
+
+// sql pobiera produkty i warianty, usuwa zduplikowane takie same wierszw (sy, oryginal_price, oryginal_url)
+
+SELECT 
+    'sku' AS sku,
+    'old_oryginal_price' AS old_oryginal_price,
+    'oryginal_url' AS oryginal_url
+
+UNION
+
+SELECT 
+    sku,
+    oryginal_price,
+    oryginal_url
+FROM products
+
+UNION
+
+SELECT
+    sku,
+    oryginal_price,
+    oryginal_url
+FROM product_variants
+
+INTO OUTFILE 'C:/Users/edrop/Downloads/old_products_and_variants_prices.csv'
+FIELDS TERMINATED BY ';'
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n';
