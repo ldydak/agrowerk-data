@@ -123,7 +123,7 @@ class ImagesController extends Controller
             // Nazwa finalna pliku
             $imageName = sprintf('%s_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
 
-            $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . $imageName;
+            $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . 'produkty/' . $imageName;
 
              // Pomijanie / aktualizacja
             if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists($imageName)) {
@@ -137,7 +137,7 @@ class ImagesController extends Controller
             // Nazwa finalna pliku
             $imageName = sprintf('%s_wariant_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
 
-            $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . 'warianty/' . $imageName;
+            $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . 'produkty/warianty/' . $imageName;
 
             // Pommijanie / aktualizacja
             if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists('warianty/' . $imageName)) {
@@ -225,7 +225,14 @@ class ImagesController extends Controller
         }
 
         // 5. Upload na SFTP
-        $folder = $this->importProductsOrVariants === 'variants' ? 'warianty/' : '';
+        // $folder = $this->importProductsOrVariants === 'variants' ? 'produkty/warianty/' : '';
+        if ($this->importProductsOrVariants === 'variants') {
+            $folder = 'produkty/warianty/';
+        } elseif ($this->importProductsOrVariants === 'products') {
+            $folder = 'produkty/';
+        } elseif ($this->importProductsOrVariants === 'brands') {
+            $folder = 'marki/';
+        }
         Storage::disk('media_sftp')->put($folder . $imageName, $image);
         
         // 6. Metadane
@@ -254,4 +261,111 @@ class ImagesController extends Controller
         if (!$headers) return false;
         return str_contains($headers[0], '200');
     }
+
+    public function brandsImageImport(Request $request)
+    {
+        $this->importProductsOrVariants = 'brands';
+
+        $request->file('file')->move(
+            public_path('import_temp'),
+            $request->file('file')->getClientOriginalName()
+        );
+        $uploadedImportFile = public_path('import_temp') . '/' . $request->file('file')->getClientOriginalName();
+
+        try {
+            // automatyczne wykrywanie separatora
+            $firstLine = fgets(fopen($uploadedImportFile, 'r'));
+            $delimiter = str_contains($firstLine, ';') ? ';' : (str_contains($firstLine, ',') ? ',' : "\t");
+
+            // usuń ewentualny BOM
+            $csvContent = file_get_contents($uploadedImportFile);
+            $csvContent = preg_replace('/^\xEF\xBB\xBF/', '', $csvContent);
+            file_put_contents($uploadedImportFile, $csvContent);
+
+            // Ustal od którego wiersza ma się zaczynać import
+            $startRow = 0;
+            $rowIndex = 0;
+
+            $reader = SimpleExcelReader::create($uploadedImportFile)
+                ->useDelimiter($delimiter);
+
+            $reader->getRows()->each(function (array $rowProperties) use (&$rowIndex, $startRow) {
+                $rowIndex++;
+
+                if ($rowIndex < $startRow) {
+                    return;
+                }
+
+                $brandName = $rowProperties['Brand'] ?? null;
+                $brandLogoOryginalUrl = $rowProperties['brand_logo'] ?? null;
+
+                if (!$brandName || !$brandLogoOryginalUrl) {
+                    return;
+                }
+
+                // Pobierz ID brandu bez ryzyka null->brand_id
+                $brandRow = DB::connection('mysql-sklep')
+                    ->table('brand_translations')
+                    ->where('name', $brandName)
+                    ->first();
+
+                if (!$brandRow) {
+                    return;
+                }
+
+                $brandID = $brandRow->brand_id;
+
+                $productsController = new ProductsController;
+
+                // Baza nazwy pliku
+                $brandLogoFileBase = $productsController->makeSlug('brand_logo_' . $brandName);
+
+                // ZAWSZE webp
+                $imageName = $brandLogoFileBase . '.webp';
+
+                // Upload (Twoja funkcja już koduje do webp)
+                $uploadInfo = $this->downloadAndUploadToFTP($brandLogoOryginalUrl, $imageName);
+
+                if (!$uploadInfo) {
+                    return;
+                }
+
+                // Zmienne
+                $path_folder = 'marki/';
+                $entity_type = 'Modules\Brand\Entities\Brand';
+                $zoneImageType = 'logo';
+
+                // (opcjonalnie) final URL — teraz też ma .webp
+                $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . $path_folder . $imageName;
+
+                $fileID = DB::connection('mysql-sklep')->table('files')->insertGetId([
+                    'user_id'   => 1,
+                    'filename'  => $imageName,
+                    'disk'      => 'media_schomann',
+                    'path'      => $path_folder . $imageName,
+                    'extension' => 'webp',
+                    'mime'      => 'image/webp',
+                    'size'      => $uploadInfo['size'] ?? null,
+                ]);
+
+                DB::connection('mysql-sklep')->table('entity_files')->insert([
+                    'file_id'      => $fileID,
+                    'entity_type'  => $entity_type,
+                    'entity_id'    => $brandID,
+                    'zone'         => $zoneImageType,
+                ]);
+
+            });
+
+            unlink($uploadedImportFile);
+
+            return redirect()->back()->with(
+                'success',
+                'Zdjęcia logotypów wgrano jako WEBP na serwer media.schomann.pl i przypisano'
+            );
+        } catch (\Exception $error) {
+            return $error->getMessage();
+        }
+    }
+
 }

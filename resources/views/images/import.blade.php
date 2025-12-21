@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('header')
-<h2 class="h3 my-3"><strong>Wgrywanie</strong> zdjęć produktów / wariantów oraz ich kompresja</h2>
-@endsection
+
 @section('content')
+<h2 class="h3 my-3"><strong>Wgrywanie</strong> zdjęć produktów / wariantów oraz ich kompresja</h2>
+
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -59,6 +59,32 @@
                     </div>
                     <div class="d-flex justify-content-end mt-3">
                         <button type="submit" class="btn btn-primary">Rozpocznij wgrywanie i kompresję</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="h3 my-3"><strong>Wgrywanie</strong> logotypów do brandów</h2>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+
+            <div class="card-body">
+                <form action="{{ route('images.import.brandsImageImport') }}" method="post" enctype="multipart/form-data">
+                    @csrf
+                    <div class="row">
+                        <div class="col-12 col-md mb-3">
+                            <label class="form-label" for="file">Wybierz plik .csv</label>
+                            <input type="file" id="file" name="file">
+                            @error('file')
+                                <div class="alert alert-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-2">
+                        <button type="submit" class="btn btn-primary">Importuj logotypy</button>
                     </div>
                 </form>
             </div>

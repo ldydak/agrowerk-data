@@ -27,6 +27,8 @@ Route::group(['prefix' => 'images', 'middleware' => ['auth']], function(){
     Route::get('import', [\App\Http\Controllers\ImagesController::class, 'show'])->name('images.import.show');
     Route::post('import',[\App\Http\Controllers\ImagesController::class, 'import'])->name('images.import.import');
     Route::post('wariantsImageImport',[\App\Http\Controllers\ImagesController::class, 'wariantsImageImport'])->name('images.import.wariantsImageImport');
+    Route::post('brandsImageImport',[\App\Http\Controllers\ImagesController::class, 'brandsImageImport'])->name('images.import.brandsImageImport');
+
 });
 
 Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function(){
