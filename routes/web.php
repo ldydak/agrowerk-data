@@ -35,4 +35,5 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function(){
     Route::get('prices', [\App\Http\Controllers\PricesController::class, 'show'])->name('settings.prices.show');
     Route::post('prices',[\App\Http\Controllers\PricesController::class, 'update'])->name('settings.prices.update');
     Route::post('update-prices',[\App\Http\Controllers\PricesController::class, 'countAndUpdatePrices'])->name('settings.prices.countAndUpdatePrices');
+    Route::get('generate-google-merchant-feed', [\App\Http\Controllers\GoogleMerchantController::class, 'generate'])->name('settings.generate-google-merchant-feed');
 });

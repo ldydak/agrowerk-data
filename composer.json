@@ -15,7 +15,8 @@
         "league/flysystem-ftp": "^3.29",
         "league/flysystem-sftp-v3": "^3.30",
         "spatie/laravel-image-optimizer": "^1.8",
-        "spatie/simple-excel": "^3.8"
+        "spatie/simple-excel": "^3.8",
+        "vitalybaev/google-merchant-feed": "^2.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

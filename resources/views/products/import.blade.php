@@ -131,4 +131,21 @@
         </div>
     </div>
 </div>
+
+<h2 class="h3 my-3">Generuj <strong>Google Merchant</strong> product feed</h2>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                    <p class="text-muted mt-2 mb-0">Dostępny pod adresem <a href="https://data.schomann.pl/google-merchant_feed.xml" target="_blank">https://data.schomann.pl/google-merchant_feed.xml</a><br>
+                    Funkcja generuje feed tylko dla produktów głównych (bez wariantów)</p>
+
+                    <div class="d-flex justify-content-end mt-2">
+                        <a href="{{route('settings.generate-google-merchant-feed')}}" class="btn btn-primary">Generuj</a>
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
