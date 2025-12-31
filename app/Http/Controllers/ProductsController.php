@@ -462,12 +462,14 @@ class ProductsController extends Controller
                 // cena jest -> ustaw oryginal_price i in_stock=1
                 $productsDB->where('sku', $rowProperties['sku'])->update([
                     'oryginal_price' => $rowProperties['new_oryginal_price'],
+                    // 'oryginal_url' => $rowProperties['new_oryginal_url'], // gdy chcemy aktualizowac tez url do oryginalnego produktu
                     'in_stock' => 1,
                     'updated_at' => now(),
                 ]);
 
                 $productVariantsDB->where('sku', $rowProperties['sku'])->update([
                     'oryginal_price' => $rowProperties['new_oryginal_price'],
+                    // 'oryginal_url' => $rowProperties['new_oryginal_url'], // gdy chcemy aktualizowac tez url do oryginalnego produktu
                     'in_stock' => 1,
                     'updated_at' => now(),
                 ]);
