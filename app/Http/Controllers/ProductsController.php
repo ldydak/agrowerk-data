@@ -445,7 +445,8 @@ class ProductsController extends Controller
                 $isNoPrice = (mb_strtolower($rowProperties['new_oryginal_price']) === 'brak ceny');
 
                 if ($isNoPrice) {
-                    // 'brak ceny' -> in_stock = 0, ceny nie ruszamy
+                    // AKTUALIZACJA PO SKU
+                    // 'brak ceny' -> in_stock = 0, ceny nie aktualizujemy bo jej nie ma - tzn produktu nie ma
                     $productsDB->where('sku', $rowProperties['sku'])->update([
                         'in_stock' => 0,
                         'updated_at' => now(), // jeśli tabela ma timestamps
@@ -456,6 +457,12 @@ class ProductsController extends Controller
                         'updated_at' => now(), // jeśli tabela ma timestamps
                     ]);
 
+                    // AKTUALIZACJA PO ID produktu (np gdy chcemy aktualizowac SKU to musimy odnosic sie po ID bo sku moze byc nie aktualne)
+                    // $productVariantsDB->where('id', $rowProperties['id'])->update([
+                    //     'in_stock' => 0,
+                    //     'updated_at' => now(), // jeśli tabela ma timestamps
+                    // ]);
+
                     return;
                 }
 
@@ -463,6 +470,8 @@ class ProductsController extends Controller
                 $productsDB->where('sku', $rowProperties['sku'])->update([
                     'oryginal_price' => $rowProperties['new_oryginal_price'],
                     // 'oryginal_url' => $rowProperties['new_oryginal_url'], // gdy chcemy aktualizowac tez url do oryginalnego produktu
+                    // 'ean' => $rowProperties['new_ean'], // gdy chcemy aktualizowac tez EAN do oryginalnego produktu
+                    // 'sku' => $rowProperties['new_sku'], // gdy chcemy aktualizowac tez SKU
                     'in_stock' => 1,
                     'updated_at' => now(),
                 ]);
@@ -470,6 +479,8 @@ class ProductsController extends Controller
                 $productVariantsDB->where('sku', $rowProperties['sku'])->update([
                     'oryginal_price' => $rowProperties['new_oryginal_price'],
                     // 'oryginal_url' => $rowProperties['new_oryginal_url'], // gdy chcemy aktualizowac tez url do oryginalnego produktu
+                    // 'ean' => $rowProperties['new_ean'], // gdy chcemy aktualizowac tez EAN do oryginalnego produktu
+                    // 'sku' => $rowProperties['new_sku'], // gdy chcemy aktualizowac tez SKU
                     'in_stock' => 1,
                     'updated_at' => now(),
                 ]);
