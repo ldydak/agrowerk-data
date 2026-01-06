@@ -90,6 +90,36 @@
     </div>
 </div>
 
+<h2 class="h3 my-3"><strong>Import FAQ</strong> do produktów (rodziców, głównych)</h2>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+
+            <div class="card-body">
+                <form action="{{ route('products.import.productFaqImport') }}" method="post" enctype="multipart/form-data">
+                    @csrf
+                    <div class="row">
+                        <div class="col-12 col-md mb-3">
+                            <label class="form-label" for="file">Wybierz plik .csv</label>
+                            <input type="file" id="file" name="file">
+                            @error('file')
+                                <div class="alert alert-danger">{{ $message }}</div>
+                            @enderror
+    
+                            <p class="text-muted mt-2 mb-0">Przykładowy plik .csv poprawnego importu opisów FAQ dla głównych produktów <a href="/import-examples/import-product-faq-example.csv">Pobierz</a></p>
+
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-2">
+                        <button type="submit" class="btn btn-primary">Importuj opisy faq</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <h2 class="h3 my-3"><strong>Tworzenie</strong> upsell produktów</h2>
 
 <div class="row">

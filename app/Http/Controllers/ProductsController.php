@@ -497,6 +497,76 @@ class ProductsController extends Controller
         }
     }
 
+    public function productFaqImport(Request $request)
+    {
+        $file = $request->file('file');
+        $filename = $file->getClientOriginalName();
+        $file->move(public_path('import_temp'), $filename);
+
+        $uploadedImportFile = public_path('import_temp') . '/' . $filename;
+
+        try {
+            // wykryj delimiter na podstawie pierwszej linii (z tolerancją BOM)
+            $fh = fopen($uploadedImportFile, 'rb');
+            $firstLine = $fh ? fgets($fh) : '';
+            if ($fh) fclose($fh);
+
+            $firstLine = preg_replace('/^\xEF\xBB\xBF/', '', (string)$firstLine);
+            $delimiter = str_contains($firstLine, ';') ? ';' : (str_contains($firstLine, ',') ? ',' : "\t");
+
+            SimpleExcelReader::create($uploadedImportFile)
+                ->useDelimiter($delimiter)
+                ->getRows()
+                ->each(function (array $row) {
+
+                    // toleruj BOM w nazwach kolumn
+                    $productId = $row['product_id'] ?? $row["\xEF\xBB\xBFproduct_id"] ?? null;
+                    $faq = $row['faq'] ?? $row["\xEF\xBB\xBFfaq"] ?? null;
+
+                    $productId = $this->toUtf8($productId);
+                    $faq = $this->toUtf8($faq);
+
+                    if (!$productId) {
+                        return;
+                    }
+
+                    DB::connection('mysql-sklep')
+                        ->table("product_translations")
+                        ->where('product_id', $productId)
+                        ->update([
+                            'faq' => $faq ?? '',
+                        ]);
+                });
+
+            unlink($uploadedImportFile);
+
+            return redirect()->back()->with('success', 'Zaimportowano i zaktualizowano opisy FAQ do produktów.');
+        } catch (\Exception $error) {
+            return $error->getMessage();
+        }
+    }
+
+    private function toUtf8($value)
+    {
+        if (!is_string($value)) return $value;
+
+        $value = preg_replace('/^\xEF\xBB\xBF/', '', $value);
+
+        if (mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+
+        foreach (['Windows-1250', 'ISO-8859-2', 'Windows-1252'] as $enc) {
+            $converted = @mb_convert_encoding($value, 'UTF-8', $enc);
+            if ($converted && mb_check_encoding($converted, 'UTF-8')) {
+                return $converted;
+            }
+        }
+
+        return $value;
+    }
+
+
     public function shortLowerId($length = 12)
     {
         $alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';

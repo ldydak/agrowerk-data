@@ -19,6 +19,7 @@ Route::group(['prefix' => 'products', 'middleware' => ['auth']], function(){
     Route::post('import',[\App\Http\Controllers\ProductsController::class, 'import'])->name('products.import.import');
     Route::post('wariantsImport',[\App\Http\Controllers\ProductsController::class, 'wariantsImport'])->name('products.import.wariantsImport');
     Route::post('newPricesImport',[\App\Http\Controllers\ProductsController::class, 'newPricesImport'])->name('products.import.newPricesImport');
+    Route::post('productFaqImport',[\App\Http\Controllers\ProductsController::class, 'productFaqImport'])->name('products.import.productFaqImport');
     Route::post('generateRelatedProducts',[\App\Http\Controllers\ProductsController::class, 'generateRelatedProducts'])->name('products.import.generateRelatedProducts');
 
 });
