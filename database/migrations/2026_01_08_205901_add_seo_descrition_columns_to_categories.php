@@ -11,7 +11,7 @@ return new class extends Migration
    public function up(): void
     {
         Schema::table('categories', function (Blueprint $table) {
-            $table->string('short_description')->nullable()->after('is_active');
+            $table->longText('short_description')->nullable()->after('is_active');
             $table->longText('section_seo_texts')->nullable()->after('short_description');
         });
     }
