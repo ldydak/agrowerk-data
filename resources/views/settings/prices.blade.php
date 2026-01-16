@@ -14,7 +14,7 @@
                 <form action="{{ route('settings.prices.update') }}" method="post">
                     @csrf
                     <div class="row">
-                        <div class="col-12 col-md-6 mb-3">
+                        <div class="col-12 mb-3">
                             <p class="text-muted">Wpisz kurs euro, który będzie brany do obliczenia aktualnych cen w sklepie przy kolejnym imporcie lub aktualizacji automatycznej.</p>
                             <label class="form-label" for="exchangeRate">Kurs euro</label>
                             <input type="text" name="exchangeRate" data-inputmask="'mask': '9.99'" class="form-control" value="{{$data->exchangeRate}}" required>
@@ -22,11 +22,50 @@
                                 <div class="alert alert-danger">{{ $message }}</div>
                             @enderror
                         </div>
-                        <div class="col-12 col-md mb-3">
-                            <p class="text-muted">Wpisz Twoją marżę, która będzie dodawana do ceny produktu i wariantu z importowanego sklepu przy kolejnym imporcie lub aktualizacji automatycznej.</p>
-                            <label class="form-label" for="profit">Marża (%)</label>
-                            <input type="text" min="0" name="profit" data-inputmask="'mask': '99'" value="{{$data->profit}}" class="form-control" required>
-                            @error('profit')
+                    </div>
+                    <p class="text-muted mt-3">Wpisz Twoją marżę, która będzie dodawana do ceny produktu i wariantu z importowanego sklepu przy kolejnym imporcie lub aktualizacji automatycznej.</p>
+
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="profit_to_50euro">Marża dla cen dostawców do 50 euro (%)</label>
+                            <input type="text" min="0" name="profit_to_50euro" data-inputmask="'mask': '99'" value="{{$data->profit_to_50euro}}" class="form-control" required>
+                            @error('profit_to_50euro')
+                                <div class="alert alert-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="profit_to_100euro">Marża dla cen dostawców 50 - 100 euro (%)</label>
+                            <input type="text" min="0" name="profit_to_100euro" data-inputmask="'mask': '99'" value="{{$data->profit_to_100euro}}" class="form-control" required>
+                            @error('profit_to_100euro')
+                                <div class="alert alert-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="profit_to_200euro">Marża dla cen dostawców 100 - 200 euro (%)</label>
+                            <input type="text" min="0" name="profit_to_200euro" data-inputmask="'mask': '99'" value="{{$data->profit_to_200euro}}" class="form-control" required>
+                            @error('profit_to_200euro')
+                                <div class="alert alert-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="profit_to_500euro">Marża dla cen dostawców 200 - 500 euro (%)</label>
+                            <input type="text" min="0" name="profit_to_500euro" data-inputmask="'mask': '99'" value="{{$data->profit_to_500euro}}" class="form-control" required>
+                            @error('profit_to_500euro')
+                                <div class="alert alert-danger">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label" for="profit_above_500euro">Marża dla cen dostawców powyżej 500 euro (%)</label>
+                            <input type="text" min="0" name="profit_above_500euro" data-inputmask="'mask': '99'" value="{{$data->profit_above_500euro}}" class="form-control" required>
+                            @error('profit_above_500euro')
                                 <div class="alert alert-danger">{{ $message }}</div>
                             @enderror
                         </div>

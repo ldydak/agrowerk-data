@@ -16,7 +16,11 @@ return new class extends Migration
         Schema::create('prices', function (Blueprint $table) {
             $table->id();
             $table->decimal('exchangeRate', 10, 2);
-            $table->decimal('profit', 10, 0);
+            $table->decimal('profit_to_50euro', 10, 0);
+            $table->decimal('profit_to_100euro', 10, 0);
+            $table->decimal('profit_to_200euro', 10, 0);
+            $table->decimal('profit_to_500euro', 10, 0);
+            $table->decimal('profit_above_500euro', 10, 0);
             $table->timestamps();
         });
     }

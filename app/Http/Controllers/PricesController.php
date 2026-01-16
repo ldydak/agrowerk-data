@@ -23,7 +23,11 @@ class PricesController extends Controller
             $data = new Prices;
         }
         $data->exchangeRate = $request->exchangeRate;
-        $data->profit = $request->profit;
+        $data->profit_to_50euro = $request->profit_to_50euro;
+        $data->profit_to_100euro = $request->profit_to_100euro;
+        $data->profit_to_200euro = $request->profit_to_200euro;
+        $data->profit_to_500euro = $request->profit_to_500euro;
+        $data->profit_above_500euro = $request->profit_above_500euro;
         $data->save();
         return redirect()->back()->with('success', 'Ustawienia cen i marży zapisane.');
     }
@@ -60,9 +64,23 @@ class PricesController extends Controller
     public function price($priceToConvert){
         // Tworzymy cenę netto!!! System sklepowy dodaje VAT 23% do ceny w koszyku. Na sklepie wyświetlamy cene netto!!
         // Łącze się z bazą DATA a nie Sklep
-        $pricesDB = DB::connection('mysql-data')->table("prices");
-        $euro = $pricesDB->pluck('exchangeRate')->first();
-        $profit = $pricesDB->pluck('profit')->first();
+        $pricesDB = DB::connection('mysql-data')->table("prices")->first();
+        $euro = $pricesDB->exchangeRate;
+
+        // wybór progu marży na podstawie ceny zakupu w EUR
+        $priceToConvert = (float) $priceToConvert; // dla pewnosci aby byl to number podczas sprawdzania
+        if ($priceToConvert <= 50) {
+            $profit = $pricesDB->profit_to_50euro;
+        } elseif ($priceToConvert <= 100) {
+            $profit = $pricesDB->profit_to_100euro;
+        } elseif ($priceToConvert <= 200) {
+            $profit = $pricesDB->profit_to_200euro;
+        } elseif ($priceToConvert <= 500) {
+            $profit = $pricesDB->profit_to_500euro;
+        } else {
+            $profit = $pricesDB->profit_above_500euro;
+        }
+
         $pricePLN = $priceToConvert*$euro;
         $finalPricePLNandProfitNetto = $pricePLN + ($pricePLN * ($profit / 100));
         return bcadd(0, $finalPricePLNandProfitNetto, 2);
