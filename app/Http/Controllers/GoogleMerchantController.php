@@ -22,9 +22,25 @@ Dostarczamy wysokiej jakości chemię i produkty użytkowe dla firm z Europy, g�
         Products::chunk(100, function ($products) use ($feed) {
             foreach ($products as $product) {    
 
-                // BRAK WARIANTÓW TYLKO PRODUKTU GŁÓWNE
+                $brandName = DB::connection('mysql-sklep')->table('brand_translations')->where('brand_id', $product->brand_id)->first()->name;
+                $productName = DB::connection('mysql-sklep')
+                    ->table('product_translations')
+                    ->where('product_id', $product->id)
+                    ->first()
+                    ->name;
 
-                // dd($product);
+                $variantName = optional(
+                    DB::connection('mysql-sklep')
+                        ->table('product_variants')
+                        ->where('product_id', $product->id)
+                        ->where('is_default', 1)
+                        ->first()
+                )->name;
+
+                // Dodaj nazwa wariantu do nazwy produktu - jesli istnieje
+                $title = $productName . ($variantName ? ' - ' . $variantName : '') . ' - ' . $brandName;
+    
+                // BRAK WARIANTÓW TYLKO PRODUKTU GŁÓWNE
 
                 // For testing
                 // if ($product->id < 401) {
@@ -40,7 +56,7 @@ Dostarczamy wysokiej jakości chemię i produkty użytkowe dla firm z Europy, g�
 
                 // Set common product properties
                 $item->setId($product->id);
-                $item->setTitle(DB::connection('mysql-sklep')->table('product_translations')->where('product_id', $product->id)->first()->name);
+                $item->setTitle($title);
                 $item->setDescription(DB::connection('mysql-sklep')->table('product_translations')->where('product_id', $product->id)->first()->short_description);
                 $item->setLink('https://schomann.pl/produkt/' . $product->slug);
 
