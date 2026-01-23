@@ -13,8 +13,8 @@ class NotificationController extends Controller
 
 public function sendNotification(Request $request)
     {
-        $signature = (string) $request->header('X-Schomann-Signature');
-        $secret = env('SCHOMANN_DATA_WEBHOOK_SECRET');
+        $signature = (string) $request->header('X-Sanipro-Signature');
+        $secret = env('SANIPRO_DATA_WEBHOOK_SECRET');
 
         if ($signature === '') {
             abort(Response::HTTP_UNAUTHORIZED, 'Missing signature');

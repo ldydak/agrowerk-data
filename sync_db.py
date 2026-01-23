@@ -137,7 +137,7 @@ def download_from_prod():
     dump_database(prod_env, DUMP_FILE)
 
     print("🔁 Zamiana linków z produkcji na lokalne...")
-    replace_links_in_file(DUMP_FILE, 'https://data.schomann.pl', 'http://schomann-data.xyz')
+    replace_links_in_file(DUMP_FILE, 'https://data.sanipro.pl', 'http://sanipro-data.xyz')
 
     restore_database(local_env, DUMP_FILE)
 
@@ -168,7 +168,7 @@ def send_to_prod():
     dump_database(local_env, DUMP_FILE)
 
     print("🔁 Zamiana linków z lokalnych na produkcyjne...")
-    replace_links_in_file(DUMP_FILE, 'http://schomann-data.xyz', 'https://data.schomann.pl')
+    replace_links_in_file(DUMP_FILE, 'http://sanipro-data.xyz', 'https://data.sanipro.pl')
 
     restore_database(prod_env, DUMP_FILE)
 

@@ -100,7 +100,7 @@ class ImagesController extends Controller
 
             unlink($uploadedImportFile);
 
-            return redirect()->back()->with('success', 'Zdjęcia wgrano pomyślnie na serwer media.schomann.pl');
+            return redirect()->back()->with('success', 'Zdjęcia wgrano pomyślnie na serwer media.sanipro.pl');
         } catch (\Exception $error) {
             return $error->getMessage();
         }
@@ -155,7 +155,7 @@ class ImagesController extends Controller
         $fileID = $filesDB->insertGetId([
             'user_id'   => 1,
             'filename'  => $imageName,
-            'disk'      => 'media_schomann',
+            'disk'      => 'media_sanipro',
             'path'      =>  $path_folder . $imageName,
             'extension' => pathinfo($imageName, PATHINFO_EXTENSION),
             'mime'      => $uploadInfo['mime'] ?? null,
@@ -341,7 +341,7 @@ class ImagesController extends Controller
                 $fileID = DB::connection('mysql-sklep')->table('files')->insertGetId([
                     'user_id'   => 1,
                     'filename'  => $imageName,
-                    'disk'      => 'media_schomann',
+                    'disk'      => 'media_sanipro',
                     'path'      => $path_folder . $imageName,
                     'extension' => 'webp',
                     'mime'      => 'image/webp',
@@ -361,7 +361,7 @@ class ImagesController extends Controller
 
             return redirect()->back()->with(
                 'success',
-                'Zdjęcia logotypów wgrano jako WEBP na serwer media.schomann.pl i przypisano'
+                'Zdjęcia logotypów wgrano jako WEBP na serwer media.sanipro.pl i przypisano'
             );
         } catch (\Exception $error) {
             return $error->getMessage();
