@@ -579,54 +579,153 @@ class ProductsController extends Controller
         return $id;
     }
 
+    // Funkcja działa tak dla upsell products: ze bierzemy losowo produkty z tej samej kategorii (najwyzej w drzewie hierarchii ).
+
     public function generateRelatedProducts(Request $request)
     {
+        // Upsell - bierzemy produkty z tej kategorii co dany produkt (ale nie najnizszej, tylko wyzszej) przez co mamy wiekszy katalog produktow
+        // Related - bierzemy produkty z tej samej kategorii ALE Z NAJNIZSZEJ HIERARCHII przez co mamy najbardziej podobne i pokrewne produkty do tego w ktorym jestesmy
+        // Skrypt nie pozwala dodawac tych samych produktow do upsell co do related. Nie ma dubli.
+        
+        // Wyczyść upsell (produktu powiązane 'Możesz również polubić' - wyswietlane w lewym sidebarze)
+        DB::connection('mysql-sklep')->table('up_sell_products')->truncate();
 
-            DB::connection('mysql-sklep')->table('up_sell_products')->truncate();
-            
-            // Pobieranie wszystkich produktów z ich kategoriami
-            $productsWithCategories = DB::connection('mysql-sklep')->table('product_categories')
-                ->get()
-                ->groupBy('product_id');
-            
-            // Grupowanie produktów według kategorii
-            $productsByCategory = DB::connection('mysql-sklep')->table('product_categories')
-                ->get()
-                ->groupBy('category_id');
-            
-            $upsellData = [];
-            
-            foreach ($productsWithCategories as $productId => $categories) {
-                // Zakładamy, że produkt ma jedną kategorię (bierzemy pierwszą)
-                $categoryId = $categories->first()->category_id;
-                
-                if (isset($productsByCategory[$categoryId])) {
-                    // Pobierz produkty z tej samej kategorii (bez bieżącego)
-                    $relatedProducts = $productsByCategory[$categoryId]
-                        ->where('product_id', '!=', $productId)
-                        ->random(min(10, $productsByCategory[$categoryId]->count() - 1));
-                    
-                    foreach ($relatedProducts as $relatedProduct) {
-                        $upsellData[] = [
+        // Wyczyść related (produkty pokrewne - podobne wyswietlane pod opisem produktu )
+        DB::connection('mysql-sklep')->table('related_products')->truncate();
+
+        $productsWithCategories = DB::connection('mysql-sklep')->table('product_categories')
+            ->select('product_id', 'category_id')
+            ->get()
+            ->groupBy('product_id');
+
+        $productsByCategory = DB::connection('mysql-sklep')->table('product_categories')
+            ->select('product_id', 'category_id')
+            ->get()
+            ->groupBy('category_id');
+
+        $allCategories = DB::connection('mysql-sklep')->table('categories')
+            ->select('id', 'parent_id')
+            ->get();
+
+        $parentById = $allCategories->pluck('parent_id', 'id')->toArray();
+
+        // nie-liście (kategorie będące rodzicem)
+        $nonLeafCategoryIds = $allCategories
+            ->pluck('parent_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $nonLeafSet = array_flip($nonLeafCategoryIds);
+
+        // depth cache
+        $depthCache = [];
+        $getDepth = function($catId) use (&$getDepth, &$depthCache, $parentById) {
+            if (!$catId) return 0;
+            if (isset($depthCache[$catId])) return $depthCache[$catId];
+
+            $parent = $parentById[$catId] ?? null;
+            $depthCache[$catId] = $parent ? 1 + $getDepth($parent) : 1;
+
+            return $depthCache[$catId];
+        };
+
+        $upsellData  = [];
+        $relatedData = [];
+
+        foreach ($productsWithCategories as $productId => $cats) {
+            $assigned = $cats->pluck('category_id')->unique()->values();
+            if ($assigned->isEmpty()) continue;
+
+            // --- RELATED: najniższy liść (najgłębszy) ---
+            $leafAssigned = $assigned->filter(fn($cid) => !isset($nonLeafSet[$cid]))->values();
+            $relatedCandidateSet = $leafAssigned->isNotEmpty() ? $leafAssigned : $assigned;
+
+            $relatedCategoryId = $relatedCandidateSet
+                ->sortByDesc(fn($cid) => $getDepth($cid))
+                ->first();
+
+            // --- UPSELL: wyższa kategoria (najpłytsza z przypisanych) ---
+            $upsellCategoryId = $assigned
+                ->sortBy(fn($cid) => $getDepth($cid))
+                ->first();
+
+            // Pula upsell
+            $upsellPool = collect();
+            if ($upsellCategoryId && isset($productsByCategory[$upsellCategoryId])) {
+                $upsellPool = $productsByCategory[$upsellCategoryId]
+                    ->pluck('product_id')
+                    ->filter(fn($pid) => (int)$pid !== (int)$productId)
+                    ->unique()
+                    ->values();
+            }
+
+            // Pula related
+            $relatedPool = collect();
+            if ($relatedCategoryId && isset($productsByCategory[$relatedCategoryId])) {
+                $relatedPool = $productsByCategory[$relatedCategoryId]
+                    ->pluck('product_id')
+                    ->filter(fn($pid) => (int)$pid !== (int)$productId)
+                    ->unique()
+                    ->values();
+            }
+
+            // --- UPSSELL: max 10 ---
+            $upsellIds = collect();
+            if ($upsellPool->isNotEmpty()) {
+                $upsellCount = min(10, $upsellPool->count());
+                $upsellIds = $upsellPool->shuffle()->take($upsellCount)->values();
+
+                foreach ($upsellIds as $upsellId) {
+                    $upsellData[] = [
+                        'product_id' => $productId,
+                        'up_sell_product_id' => $upsellId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+            }
+
+            // --- RELATED: max 10, bez upsell (dla tego produktu) ---
+            if ($relatedPool->isNotEmpty()) {
+                $filteredRelatedPool = $relatedPool->diff($upsellIds)->values();
+
+                if ($filteredRelatedPool->isNotEmpty()) {
+                    $relatedCount = min(10, $filteredRelatedPool->count());
+                    $relatedIds = $filteredRelatedPool->shuffle()->take($relatedCount)->values();
+
+                    foreach ($relatedIds as $relId) {
+                        $relatedData[] = [
                             'product_id' => $productId,
-                            'up_sell_product_id' => $relatedProduct->product_id,
+                            'related_product_id' => $relId,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ];
                     }
                 }
-                
-                // Wstawianie w partiach po 1000 rekordów
-                if (count($upsellData) >= 1000) {
-                    DB::connection('mysql-sklep')->table('up_sell_products')->insert($upsellData);
-                    $upsellData = [];
-                }
             }
-            
-            // Wstawienie pozostałych rekordów
-            if (!empty($upsellData)) {
+
+            // batche
+            if (count($upsellData) >= 1000) {
                 DB::connection('mysql-sklep')->table('up_sell_products')->insert($upsellData);
+                $upsellData = [];
             }
-            return redirect()->back()->with('success', 'Pokrewne produkty zostały wygenerowane.');        
+            if (count($relatedData) >= 1000) {
+                DB::connection('mysql-sklep')->table('related_products')->insert($relatedData);
+                $relatedData = [];
+            }
+        }
+
+        if (!empty($upsellData)) {
+            DB::connection('mysql-sklep')->table('up_sell_products')->insert($upsellData);
+        }
+        if (!empty($relatedData)) {
+            DB::connection('mysql-sklep')->table('related_products')->insert($relatedData);
+        }
+
+        return redirect()->back()->with('success', 'Upsell (wyższa kategoria) i related (liść) zostały wygenerowane.');
     }
+
+
+
 }

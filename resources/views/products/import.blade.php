@@ -133,8 +133,10 @@
                             <label class="form-check">
                                 <input class="form-check-input" type="radio" value="pokrewne" name="relatedProductsType" checked required>
                                     <span class="form-check-label">
-                                    Produkty pokrewne
+                                        Produkty powiązane i pokrewne
                                     </span>
+                                    <p class="text-muted mt-2 mb-0">Powiązane: "Możesz również polubić" w lewym sidebarze.<br>
+                                    Pokrewne: "Podobne produkty" pod opisem produktu.</p>
                               </label>
 
                               {{-- <label class="form-check">
