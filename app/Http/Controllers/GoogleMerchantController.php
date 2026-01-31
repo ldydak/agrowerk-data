@@ -100,7 +100,7 @@ Dostarczamy wysokiej jakości chemię i produkty użytkowe dla firm z Europy, g�
                 // Shipping info
                 $shipping = new Shipping();
                 $shipping->setCountry('PL');
-                $shipping->setService('InPost Kurier');
+                $shipping->setService('Kurier');
                 $shipping->setPrice('18 PLN');
                 $item->setShipping($shipping);
             
