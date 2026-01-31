@@ -37,4 +37,11 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function(){
     Route::post('prices',[\App\Http\Controllers\PricesController::class, 'update'])->name('settings.prices.update');
     Route::post('update-prices',[\App\Http\Controllers\PricesController::class, 'countAndUpdatePrices'])->name('settings.prices.countAndUpdatePrices');
     Route::get('generate-google-merchant-feed', [\App\Http\Controllers\GoogleMerchantController::class, 'generate'])->name('settings.generate-google-merchant-feed');
+    Route::get('indexnow', [IndexNowSitemapController::class, 'show'])
+        ->name('settings.indexnow.show');
+    Route::get('indexnow/submit-sitemap', [IndexNowSitemapController::class, 'submitFromSitemapWeb'])
+        ->name('settings.submit-indexnow');
 });
+
+
+

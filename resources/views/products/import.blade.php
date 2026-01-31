@@ -180,4 +180,36 @@
         </div>
     </div>
 </div>
+
+<h2 class="h3 my-3">Wyślij <strong>IndexNow</strong> z sitemap</h2>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <p class="text-muted mt-2 mb-2">
+                    Funkcja pobiera główną sitemapę (sitemapindex) i wysyła do IndexNow tylko URL-e
+                    z podsitemap (products, categories, brands, pages), które mają <code>&lt;lastmod&gt;</code>
+                    w ostatnich <strong>{{ $days ?? 7 }} dni</strong>.<br>
+                    Domyślna sitemap: <a href="{{ $sitemapUrl ?? 'https://sanipro.pl/sitemap.xml' }}" target="_blank">{{ $sitemapUrl ?? 'https://sanipro.pl/sitemap.xml' }}</a>
+                </p>
+
+                @if(session('status_message'))
+                    <div class="alert {{ session('status_ok') ? 'alert-success' : 'alert-danger' }} mb-2">
+                        {{ session('status_message') }}
+                    </div>
+                @endif
+
+                <div class="d-flex justify-content-end mt-2 gap-2">
+                    <a href="{{ route('settings.submit-indexnow') }}"
+                       class="btn btn-primary"
+                       onclick="return confirm('Wysłać do IndexNow zaktualizowane URL-e z ostatnich {{ $days ?? 7 }} dni?');">
+                        Wyślij do IndexNow
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
