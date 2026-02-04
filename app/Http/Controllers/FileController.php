@@ -11,6 +11,9 @@ class FileController extends Controller
 {
     public function downloadFile($hash){
 
+        // dekodujemy
+        $hash = urldecode($hash);
+
         // Jeśli nie przeszedł hCaptcha dla tego hash → pokaż widok CAPTCHA
         if (!session("hcaptcha_passed_{$hash}")) {
             return view('captcha_required', compact('hash'));
@@ -19,7 +22,7 @@ class FileController extends Controller
 
 
         // odkoduj link do pliku na hygi
-        $fileOryginalUrl = decrypt($hash, 'sanipro', 'aes-256-ecb');
+        $fileOryginalUrl = decrypt($hash);
 
         $proxyAddress= env('ROTATING_PROXY_HOST');
         $proxyPort= env('ROTATING_PROXY_PORT');
