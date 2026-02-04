@@ -41,5 +41,7 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function(){
     Route::get('indexnow/submit-sitemap', [\App\Http\Controllers\IndexNowSitemapController::class, 'submitFromSitemapWeb'])->name('settings.submit-indexnow');
 });
 
-
+Route::get('/pobierz-plik/{hash}', [\App\Http\Controllers\FileController::class, 'downloadFile'])->name('download-file');
+Route::post('/pobierz-plik/{hash}/verify', [\App\Http\Controllers\FileController::class, 'verifyCaptcha'])
+    ->name('download-file.verify');
 
