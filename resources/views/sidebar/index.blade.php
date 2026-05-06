@@ -23,6 +23,11 @@
                     <span class="align-middle">Ceny i marża</span>
                 </a>
             </li>
+            <li class="sidebar-item">
+                <a class="sidebar-link" href="{{route('settings.blog.show')}}">
+                    <span class="align-middle">Blog</span>
+                </a>
+            </li>
         </ul>
 
     </div>

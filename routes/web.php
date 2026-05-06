@@ -36,6 +36,11 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function(){
     Route::get('prices', [\App\Http\Controllers\PricesController::class, 'show'])->name('settings.prices.show');
     Route::post('prices',[\App\Http\Controllers\PricesController::class, 'update'])->name('settings.prices.update');
     Route::post('update-prices',[\App\Http\Controllers\PricesController::class, 'countAndUpdatePrices'])->name('settings.prices.countAndUpdatePrices');
+    Route::get('blog', [\App\Http\Controllers\BlogSettingsController::class, 'show'])->name('settings.blog.show');
+    Route::post('blog', [\App\Http\Controllers\BlogSettingsController::class, 'store'])->name('settings.blog.store');
+    Route::put('blog/{blogPostId}', [\App\Http\Controllers\BlogSettingsController::class, 'update'])->name('settings.blog.update');
+    Route::delete('blog/{blogPostId}', [\App\Http\Controllers\BlogSettingsController::class, 'destroy'])->name('settings.blog.destroy');
+    Route::delete('blog/{blogPostId}/categories/{categoryId}', [\App\Http\Controllers\BlogSettingsController::class, 'destroyCategory'])->name('settings.blog.destroy-category');
     Route::get('generate-google-merchant-feed', [\App\Http\Controllers\GoogleMerchantController::class, 'generate'])->name('settings.generate-google-merchant-feed');
     Route::get('indexnow', [\App\Http\Controllers\IndexNowSitemapController::class, 'show'])->name('settings.indexnow.show');
     Route::get('indexnow/submit-sitemap', [\App\Http\Controllers\IndexNowSitemapController::class, 'submitFromSitemapWeb'])->name('settings.submit-indexnow');
@@ -44,4 +49,3 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function(){
 Route::get('/pobierz-plik/{hash}', [\App\Http\Controllers\FileController::class, 'downloadFile'])->name('download-file');
 Route::post('/pobierz-plik/{hash}/verify', [\App\Http\Controllers\FileController::class, 'verifyCaptcha'])
     ->name('download-file.verify');
-
