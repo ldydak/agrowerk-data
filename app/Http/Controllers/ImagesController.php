@@ -100,7 +100,7 @@ class ImagesController extends Controller
 
             unlink($uploadedImportFile);
 
-            return redirect()->back()->with('success', 'Zdjęcia wgrano pomyślnie na serwer media.sanipro.pl');
+            return redirect()->back()->with('success', 'Zdjęcia wgrano pomyślnie na serwer media.agrowerk.pl');
         } catch (\Exception $error) {
             return $error->getMessage();
         }
@@ -361,7 +361,7 @@ class ImagesController extends Controller
 
             return redirect()->back()->with(
                 'success',
-                'Zdjęcia logotypów wgrano jako WEBP na serwer media.sanipro.pl i przypisano'
+                'Zdjęcia logotypów wgrano jako WEBP na serwer media.agrowerk.pl i przypisano'
             );
         } catch (\Exception $error) {
             return $error->getMessage();

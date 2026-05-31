@@ -45,11 +45,11 @@ class FileController extends Controller
         } else {    
             // nazwa losowa dla pliku
             $fileName = uniqid(rand(), true) . '.pdf';
-            // wgraj na media.sanipro.pl/pliki-temp/
+            // wgraj na media.agrowerk.pl/pliki-temp/
             $folder = 'pliki-temp/';
             Storage::disk('media_sftp')->put($folder . $fileName, $downloadedFile, 'r+');
 
-            // przekieruj na URL z media.sanipro.pl
+            // przekieruj na URL z media.agrowerk.pl
             return redirect(env('MEDIA_SFTP_FILES_PRE_URL').$fileName);
         }
     }

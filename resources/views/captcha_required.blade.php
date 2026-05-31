@@ -14,7 +14,7 @@
     </style>
 </head>
 <body >
-<img src="https://sanipro.pl/img/sanipro_logo.svg" style="width: 180px;" alt="Sanipro.pl">
+<img src="https://agrowerk.pl/img/sanipro_logo.svg" style="width: 180px;" alt="agrowerk.pl">
 <h2>Aby pobrać plik, potwierdź że nie jesteś botem</h2>
 
 @if(session('error'))

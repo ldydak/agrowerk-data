@@ -170,7 +170,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-body">
-                    <p class="text-muted mt-2 mb-0">Dostępny pod adresem <a href="https://data.sanipro.pl/google-merchant_feed.xml" target="_blank">https://data.sanipro.pl/google-merchant_feed.xml</a><br>
+                    <p class="text-muted mt-2 mb-0">Dostępny pod adresem <a href="https://data.agrowerk.pl/google-merchant_feed.xml" target="_blank">https://data.agrowerk.pl/google-merchant_feed.xml</a><br>
                     Funkcja generuje feed tylko dla produktów głównych (bez wariantów)</p>
 
                     <div class="d-flex justify-content-end mt-2">
@@ -191,7 +191,7 @@
                     Funkcja pobiera główną sitemapę (sitemapindex) i wysyła do IndexNow tylko URL-e
                     z podsitemap (products, categories, brands, pages), które mają <code>&lt;lastmod&gt;</code>
                     w ostatnich <strong>{{ $days ?? 7 }} dni</strong>.<br>
-                    Domyślna sitemap: <a href="{{ $sitemapUrl ?? 'https://sanipro.pl/sitemap.xml' }}" target="_blank">{{ $sitemapUrl ?? 'https://sanipro.pl/sitemap.xml' }}</a>
+                    Domyślna sitemap: <a href="{{ $sitemapUrl ?? 'https://agrowerk.pl/sitemap.xml' }}" target="_blank">{{ $sitemapUrl ?? 'https://agrowerk.pl/sitemap.xml' }}</a>
                 </p>
 
                 @if(session('status_message'))

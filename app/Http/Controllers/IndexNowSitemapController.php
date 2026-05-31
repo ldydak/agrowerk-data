@@ -10,10 +10,10 @@ use Ymigval\LaravelIndexnow\Facade\IndexNow;
 
 class IndexNowSitemapController extends Controller
 {
-    private string $allowedHost = 'sanipro.pl';
+    private string $allowedHost = 'agrowerk.pl';
 
     // Domyślne ustawienia
-    private string $defaultSitemap = 'https://sanipro.pl/sitemap.xml';
+    private string $defaultSitemap = 'https://agrowerk.pl/sitemap.xml';
     private int $defaultDays = 7; // domyślnie 7 dni (zalecane)
 
     public function show()
@@ -51,7 +51,7 @@ class IndexNowSitemapController extends Controller
     /**
      * API: POST /api/indexnow/submit-sitemap
      * Body (opcjonalnie):
-     * - sitemap: url (default https://sanipro.pl/sitemap.xml)
+     * - sitemap: url (default https://agrowerk.pl/sitemap.xml)
      * - days: int (default 7)
      */
     public function submitFromSitemapApi(Request $request)
@@ -88,7 +88,7 @@ class IndexNowSitemapController extends Controller
         // Bezpiecznik: nie submitujemy cudzych domen
         $host = parse_url($sitemapUrl, PHP_URL_HOST);
         if (!is_string($host) || !Str::endsWith($host, $this->allowedHost)) {
-            throw new \RuntimeException('Dozwolone są tylko sitemap-y z sanipro.pl');
+            throw new \RuntimeException('Dozwolone są tylko sitemap-y z agrowerk.pl');
         }
 
         // 1) Zbierz URL-e recent z sitemapindex/urlset

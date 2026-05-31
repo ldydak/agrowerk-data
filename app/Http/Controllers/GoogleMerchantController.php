@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Models\Products; // Sanipro sklep products
+use App\Models\Products; // Agrowerk sklep products
 use Vitalybaev\GoogleMerchant\Feed;
 use Vitalybaev\GoogleMerchant\Product; // google feed 1 product
 use Vitalybaev\GoogleMerchant\Product\Shipping;
@@ -16,7 +16,7 @@ class GoogleMerchantController extends Controller
 
     public function generate(Request $request){
 
-        $feed = new Feed("Sanipro.pl", "https://sanipro.pl", "Czystość i zaopatrzenie bez kompromisów. Profesjonalne zaopatrzenie B2B
+        $feed = new Feed("Agrowerk.pl", "https://agrowerk.pl", "Czystość i zaopatrzenie bez kompromisów. Profesjonalne zaopatrzenie B2B
 Dostarczamy wysokiej jakości chemię i produkty użytkowe dla firm z Europy, głównie z Niemiec.");
 
         Products::chunk(100, function ($products) use ($feed) {
@@ -58,7 +58,7 @@ Dostarczamy wysokiej jakości chemię i produkty użytkowe dla firm z Europy, g�
                 $item->setId($product->id);
                 $item->setTitle($title);
                 $item->setDescription(DB::connection('mysql-sklep')->table('product_translations')->where('product_id', $product->id)->first()->short_description);
-                $item->setLink('https://sanipro.pl/produkt/' . $product->slug);
+                $item->setLink('https://agrowerk.pl/produkt/' . $product->slug);
 
                 // Images
                 $entityFiles = DB::connection('mysql-sklep')->table('entity_files')->where('entity_type', 'Modules\Product\Entities\Product')->where('entity_id', $product->id)->get();
@@ -67,12 +67,12 @@ Dostarczamy wysokiej jakości chemię i produkty użytkowe dla firm z Europy, g�
                     ->table('files')
                     ->whereIn('id', $fileIds)
                     ->pluck('path')
-                    ->map(fn ($path) => 'https://media.sanipro.pl/' . ltrim($path, '/'))
+                    ->map(fn ($path) => 'https://media.agrowerk.pl/' . ltrim($path, '/'))
                     ->values()
                     ->all();
                 // fallback
                 if (empty($images)) {
-                    $images = ['https://sanipro.pl/build/assets/image-placeholder.png'];
+                    $images = ['https://agrowerk.pl/build/assets/image-placeholder.png'];
                 }
                 // główne zdjęcie
                 $item->setImage($images[0]);
