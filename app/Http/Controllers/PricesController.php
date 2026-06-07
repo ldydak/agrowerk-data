@@ -62,26 +62,30 @@ class PricesController extends Controller
     }
 
     public function price($priceToConvert){
+        // W agrowerk ceny  serwisu FAIE mamy w netto wiec musimy dodawac vat niemiecki  
         // Tworzymy cenę netto!!! System sklepowy dodaje VAT 23% do ceny w koszyku. Na sklepie wyświetlamy cene netto!!
         // Łącze się z bazą DATA a nie Sklep
         $pricesDB = DB::connection('mysql-data')->table("prices")->first();
         $euro = $pricesDB->exchangeRate;
+        $germanVatPercent = (float) config('prices.german_vat_percent', 20);
 
-        // wybór progu marży na podstawie ceny zakupu w EUR
+        // wybor progu marzy na podstawie ceny zakupu w EUR po doliczeniu niemieckiego VAT
         $priceToConvert = (float) $priceToConvert; // dla pewnosci aby byl to number podczas sprawdzania
-        if ($priceToConvert <= 50) {
+        $priceEuroWithGermanVat = $priceToConvert * (1 + ($germanVatPercent / 100));
+
+        if ($priceEuroWithGermanVat <= 50) {
             $profit = $pricesDB->profit_to_50euro;
-        } elseif ($priceToConvert <= 100) {
+        } elseif ($priceEuroWithGermanVat <= 100) {
             $profit = $pricesDB->profit_to_100euro;
-        } elseif ($priceToConvert <= 200) {
+        } elseif ($priceEuroWithGermanVat <= 200) {
             $profit = $pricesDB->profit_to_200euro;
-        } elseif ($priceToConvert <= 500) {
+        } elseif ($priceEuroWithGermanVat <= 500) {
             $profit = $pricesDB->profit_to_500euro;
         } else {
             $profit = $pricesDB->profit_above_500euro;
         }
 
-        $pricePLN = $priceToConvert*$euro;
+        $pricePLN = $priceEuroWithGermanVat * $euro;
         $finalPricePLNandProfitNetto = $pricePLN + ($pricePLN * ($profit / 100));
         return bcadd(0, $finalPricePLNandProfitNetto, 2);
     }

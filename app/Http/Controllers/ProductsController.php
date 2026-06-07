@@ -35,6 +35,13 @@ class ProductsController extends Controller
             ->getRows()
             ->each(function (array $rowProperties) {
 
+                $sku = trim((string)($rowProperties['SKU'] ?? ''));
+                $name = trim((string)($rowProperties['Name'] ?? ''));
+
+                if ($sku === '' || $name === '') {
+                    return;
+                }
+
                 // szukaj czy numer artykułu z CSV istnieje juz w bazie sklepu
                 // pętla dla kazdego rzędu pliku csv
                 $productsDB = DB::connection('mysql-sklep')->table("products");
@@ -43,7 +50,7 @@ class ProductsController extends Controller
                 $metaDataDB = DB::connection('mysql-sklep')->table("meta_data");
                 $metaDataTranslationsDB = DB::connection('mysql-sklep')->table("meta_data_translations");
 
-                $productExistAlready = $productsDB->where('sku','=', $rowProperties['SKU'])->first();
+                $productExistAlready = $productsDB->where('sku','=', $sku)->first();
 
                 if($productExistAlready){
                 // jesli produkt istnieje, to nie rób nic...
@@ -63,13 +70,18 @@ class ProductsController extends Controller
 
                     // $vatID = $this->vat();
 
+                    $productSlugSource = trim((string)($rowProperties['slug_pl'] ?? '')) !== ''
+                        ? $rowProperties['slug_pl']
+                        : $name;
+                    $productSlug = $this->uniqueSlug('products', $productSlugSource);
+
                     // stwórz produkt
                     $productID = $productsDB->insertGetId(
                         [
                         'brand_id' => $brandID,
                         'tax_class_id' => 1,
-                        'slug' =>  $this->makeSlug($rowProperties['Name']),
-                        'sku' => $rowProperties['SKU'],
+                        'slug' => $productSlug,
+                        'sku' => $sku,
                         'price' => $this->price($rowProperties['oryginal_price']),
                         'selling_price' => $this->price($rowProperties['oryginal_price']),
                         'oryginal_price' => str_replace(',', '.', $rowProperties['oryginal_price']),
@@ -105,7 +117,7 @@ class ProductsController extends Controller
                         [
                             'product_id' => $productID,
                             'locale' => 'pl',
-                            'name' => $rowProperties['Name'],
+                            'name' => $name,
                             'description' => $rowProperties['Description'],
                             'short_description' => $rowProperties['meta_description'],
                         ]
@@ -123,7 +135,7 @@ class ProductsController extends Controller
                         [
                             'meta_data_id' => $metaDataID,
                             'locale' => 'pl',
-                            'meta_title' => $rowProperties['Name'],
+                            'meta_title' => $name,
                             'meta_description' => $rowProperties['meta_description'],
                         ]
                     );
@@ -257,6 +269,33 @@ class ProductsController extends Controller
         return $createdSlug;
     }
 
+    private function uniqueSlug(string $table, string $source, ?int $ignoreId = null): string
+    {
+        $baseSlug = $this->makeSlug($source);
+
+        if ($baseSlug === '') {
+            $baseSlug = Str::lower(Str::random(8));
+        }
+
+        $slug = $baseSlug;
+        $counter = 2;
+
+        while (true) {
+            $query = DB::connection('mysql-sklep')->table($table)->where('slug', $slug);
+
+            if ($ignoreId !== null) {
+                $query->where('id', '<>', $ignoreId);
+            }
+
+            if (!$query->exists()) {
+                return $slug;
+            }
+
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+    }
+
     public $currentParentProductId;
     public $currentVariantPosition = 0;
     public $currentVariationId;
@@ -321,7 +360,7 @@ class ProductsController extends Controller
                             // Aktualizuje produkt ktory jest rodzicem. Zmieniam slug, nazwe
                             // zostawiam SKU, i inne dane bo w przyszlosci bede mogl szukac po SKU i parent_has_variants
                             $productsDB->where('id','=', $this->currentParentProductId)->update([
-                                'slug'          => $this->makeSlug($rowProperties['Name']),
+                                'slug'          => $this->uniqueSlug('products', $rowProperties['Name'], $this->currentParentProductId),
                             ]);
                             $productTranslationsDB->where('product_id','=', $this->currentParentProductId)->update([
                                 'name'          => $rowProperties['Name']
