@@ -60,11 +60,11 @@ return [
             'report' => false,
         ],
         'media_sftp' => [
-            'driver' => 'sftp', // media.sanipro jest na SSL (https) a więc korzystam z SFTP
+            'driver' => 'sftp', // media.agrowerk jest na SSL (https) a więc korzystam z SFTP
             'host' => env('MEDIA_SFTP_HOST'),
             'username' =>  env('MEDIA_SFTP_USERNAME'),
             'password' =>  env('MEDIA_SFTP_PASSWORD'),
-            'port'     =>  22, // media.sanipro jest na SSL (https) a więc korzystam z SFTP cyzli port 22 a nie standard 21 dla ftp
+            'port'     =>  22, // media.agrowerk jest na SSL (https) a więc korzystam z SFTP cyzli port 22 a nie standard 21 dla ftp
             'root'     =>  env('MEDIA_SFTP_IMAGES_PATH')
             // 'root' => '/Example',
             // 'passive'  => true,
