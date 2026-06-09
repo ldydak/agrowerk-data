@@ -10,6 +10,8 @@ use Image;
 
 class ImagesController extends Controller
 {
+    private const IMPORT_MAX_EXECUTION_SECONDS = 1800;
+
     public function show()
     {
         return view('images.import');
@@ -20,6 +22,8 @@ class ImagesController extends Controller
 
     public function import(Request $request)
     {
+        $this->extendImportRuntime();
+
         $request->validate([
             'file' => 'required|file|mimes:csv,txt',
             'imagesImportType' => 'required|in:skipExisted,updateAll',
@@ -111,9 +115,6 @@ class ImagesController extends Controller
         $filesDB = DB::connection('mysql-sklep')->table('files');
         $entityFilesDB = DB::connection('mysql-sklep')->table('entity_files');
 
-        $imageExtension = strtolower(pathinfo($imageUrl, PATHINFO_EXTENSION));
-
-
         // Produkty czy warianty
         if($productsOrVariants == 'products'){
             // dodajesz zdjecia produktow
@@ -121,32 +122,31 @@ class ImagesController extends Controller
             $path_folder = 'produkty/';
             $entity_type = 'Modules\Product\Entities\Product';
             // Nazwa finalna pliku
-            $imageName = sprintf('%s_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
+            $imageName = sprintf('%s_%s_%d.webp', $sku, $productSlug, $i);
 
             $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . 'produkty/' . $imageName;
 
-             // Pomijanie / aktualizacja
-            if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists($imageName)) {
-                return;
-            }
         } else {
             // dodajesz zdjecia wariantow
             // Zmienne
             $path_folder = 'produkty/warianty/';
             $entity_type = 'Modules\Product\Entities\ProductVariant';
             // Nazwa finalna pliku
-            $imageName = sprintf('%s_wariant_%s_%d.%s', $sku, $productSlug, $i, $imageExtension === 'jpg' ? 'webp' : $imageExtension);
+            $imageName = sprintf('%s_wariant_%s_%d.webp', $sku, $productSlug, $i);
 
             $finalUrl = env('MEDIA_SFTP_IMAGES_PRE_URL') . 'produkty/warianty/' . $imageName;
 
-            // Pommijanie / aktualizacja
-            if ($this->importType === 'skipExisted' && Storage::disk('media_sftp')->exists('warianty/' . $imageName)) {
-                return;
-            }
+        }
+
+        $remotePath = $path_folder . $imageName;
+
+        // Pommijanie / aktualizacja
+        if ($this->importType === 'skipExisted' && $this->remoteFileExists($remotePath)) {
+            return;
         }
 
         // Pobierz i wgraj
-        $uploadInfo = $this->downloadAndUploadToFTP($imageUrl, $imageName);
+        $uploadInfo = $this->downloadAndUploadToFTP($imageUrl, $remotePath);
 
         if (!$uploadInfo) {
             return;
@@ -170,8 +170,10 @@ class ImagesController extends Controller
         ]);
     }
 
-    public function downloadAndUploadToFTP($imageUrl, $imageName)
+    public function downloadAndUploadToFTP($imageUrl, $remotePath)
     {
+        $this->extendImportRuntime();
+
         // 1. Sprawdzenie istnienia pliku po stronie dostawcy
         if (!$this->checkFileExistOnSupplierPage($imageUrl)) {
             \Log::warning("Importer: dostawca zwrócił brak pliku", ['url' => $imageUrl]);
@@ -192,6 +194,7 @@ class ImagesController extends Controller
 
         $raw = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
 
         curl_close($ch);
 
@@ -199,6 +202,7 @@ class ImagesController extends Controller
             \Log::error("Importer: nie udało się pobrać obrazu", [
                 'url' => $imageUrl,
                 'http' => $httpCode,
+                'content_type' => $contentType,
                 'bytes' => strlen($raw),
             ]);
             return false;
@@ -214,32 +218,68 @@ class ImagesController extends Controller
         }
 
         // 4. Próba utworzenia obiektu obrazu 
-        try {
-            $image = Image::make($raw)->encode('webp', 85);
-        } catch (\Exception $e) {
+        if ($this->isWebpBinary($raw)) {
+            $image = $raw;
+        } else {
+            try {
+                $image = (string) Image::make($raw)->encode('webp', 85);
+            } catch (\Exception $e) {
             \Log::error("Importer: błąd konwersji do WEBP", [
                 'url' => $imageUrl,
+                'content_type' => $contentType,
                 'error' => $e->getMessage(),
             ]);
             return false;
         }
 
-        // 5. Upload na SFTP
-        // $folder = $this->importProductsOrVariants === 'variants' ? 'produkty/warianty/' : '';
-        if ($this->importProductsOrVariants === 'variants') {
-            $folder = 'produkty/warianty/';
-        } elseif ($this->importProductsOrVariants === 'products') {
-            $folder = 'produkty/';
-        } elseif ($this->importProductsOrVariants === 'brands') {
-            $folder = 'marki/';
         }
-        Storage::disk('media_sftp')->put($folder . $imageName, $image);
+
+        // 5. Upload na SFTP
+        try {
+            Storage::disk('media_sftp')->put($remotePath, $image);
+        } catch (\Throwable $e) {
+            \Log::error('Importer: błąd uploadu obrazu na SFTP', [
+                'path' => $remotePath,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
         
         // 6. Metadane
         return [
             'mime' => 'image/webp',
             'size' => strlen($image),
         ];
+    }
+
+    private function remoteFileExists(string $remotePath): bool
+    {
+        try {
+            return Storage::disk('media_sftp')->exists($remotePath);
+        } catch (\Throwable $e) {
+            \Log::warning('Importer: nie udało się sprawdzić pliku na SFTP, próbuję uploadu', [
+                'path' => $remotePath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    private function extendImportRuntime(): void
+    {
+        @ini_set('max_execution_time', (string) self::IMPORT_MAX_EXECUTION_SECONDS);
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(self::IMPORT_MAX_EXECUTION_SECONDS);
+        }
+    }
+
+    private function isWebpBinary(string $raw): bool
+    {
+        return strlen($raw) > 12
+            && substr($raw, 0, 4) === 'RIFF'
+            && substr($raw, 8, 4) === 'WEBP';
     }
 
 
@@ -264,6 +304,8 @@ class ImagesController extends Controller
 
     public function brandsImageImport(Request $request)
     {
+        $this->extendImportRuntime();
+
         $this->importProductsOrVariants = 'brands';
 
         $request->file('file')->move(
@@ -322,16 +364,16 @@ class ImagesController extends Controller
 
                 // ZAWSZE webp
                 $imageName = $brandLogoFileBase . '.webp';
+                $path_folder = 'marki/';
 
                 // Upload (Twoja funkcja już koduje do webp)
-                $uploadInfo = $this->downloadAndUploadToFTP($brandLogoOryginalUrl, $imageName);
+                $uploadInfo = $this->downloadAndUploadToFTP($brandLogoOryginalUrl, $path_folder . $imageName);
 
                 if (!$uploadInfo) {
                     return;
                 }
 
                 // Zmienne
-                $path_folder = 'marki/';
                 $entity_type = 'Modules\Brand\Entities\Brand';
                 $zoneImageType = 'logo';
 
