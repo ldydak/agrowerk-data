@@ -50,7 +50,7 @@ def replace_links_in_file(filepath, old, new):
 def create_mysql_config(env, config_file_path):
     """Tworzy tymczasowy plik konfiguracyjny MySQL"""
     config_content = f"""[client]
-host={env['DB_DATA_DATA_HOST']}
+host={env['DB_DATA_HOST']}
 user={env['DB_DATA_USERNAME']}
 password={env['DB_DATA_PASSWORD']}
 port={env.get('DB_PORT', '3306')}
